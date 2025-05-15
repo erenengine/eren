@@ -1,0 +1,11 @@
+# OS 및 에디터 관련 파일
+.DS_Store
+Thumbs.db
+
+# Node.js 의존성
+node_modules/
+
+# 특정 패키지 매니저 관련
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
