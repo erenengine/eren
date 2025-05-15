@@ -1,0 +1,12 @@
+{
+  "name": "erenengine",
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "main": "./dist/index.js",
+  "dependencies": {
+    "@babylonjs/core": "^8.7.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}
