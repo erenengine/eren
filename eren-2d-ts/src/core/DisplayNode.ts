@@ -1,7 +1,7 @@
 import { Container } from 'pixi.js';
 import GameObject from './GameObject';
 
-export default class GameNode {
+export default class DisplayNode {
   constructor(container: Container) { }
 
   addTo(parent: GameObject): this {
@@ -10,6 +10,14 @@ export default class GameNode {
   }
 
   remove() {
+    throw new Error('Not implemented');
+  }
+
+  show() {
+    throw new Error('Not implemented');
+  }
+
+  hide() {
     throw new Error('Not implemented');
   }
 }

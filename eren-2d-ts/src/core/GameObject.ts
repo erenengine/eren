@@ -1,7 +1,7 @@
 import { Container } from 'pixi.js';
-import GameNode from './GameNode';
+import DisplayNode from './DisplayNode';
 
-export default class GameObject extends GameNode {
+export default class GameObject extends DisplayNode {
   constructor(x: number, y: number) {
     super(new Container({ x, y }));
   }
