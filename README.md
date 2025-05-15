@@ -7,8 +7,8 @@
 
 1. `eren-2d-ts`, TypeScript 기반의 2D 게임 엔진입니다.
 2. `eren-3d-ts`, TypeScript 기반의 3D 게임 엔진입니다.
-3. `eren-2d-rs`, Rust 기반의 2D 게임 엔진입니다.
-4. `eren-3d-rs`, Rust 기반의 3D 게임 엔진입니다.
+3. `eren-2d-rs`, Rust 기반의 2D 게임 엔진입니다. (추후 개발 예정)
+4. `eren-3d-rs`, Rust 기반의 3D 게임 엔진입니다. (추후 개발 예정)
 
 ## 커뮤니티
 - [네이버 카페](https://cafe.naver.com/erenengine)
