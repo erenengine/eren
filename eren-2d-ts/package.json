@@ -9,7 +9,8 @@
     "matter-js": "^0.20.0",
     "pixi-filters": "^6.1.2",
     "pixi.js": "^8.9.2",
-    "stats.js": "^0.17.0"
+    "stats.js": "^0.17.0",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "typescript": "^5.8.3"
