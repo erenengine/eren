@@ -1,1 +1,1 @@
-export { default as GameNode } from "./core/GameNode";
+export { default as GameObject } from "./core/GameObject";
