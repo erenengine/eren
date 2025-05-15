@@ -10,5 +10,9 @@
 3. `eren-2d-rs`, Rust 기반의 2D 게임 엔진입니다.
 4. `eren-3d-rs`, Rust 기반의 3D 게임 엔진입니다.
 
+## 커뮤니티
+- [네이버 카페](https://cafe.naver.com/erenengine)
+- [디스코드](https://discord.gg/VyeJKK4c7J)
+
 ## 라이센스
 [MIT 라이센스](LICENSE)
