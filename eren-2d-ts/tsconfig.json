@@ -5,7 +5,7 @@
     "noImplicitAny": true,
     "preserveConstEnums": true,
     "inlineSources": true,
-    "inlineSourceMap": true,
+    "sourceMap": true,
     "esModuleInterop": true,
     "lib": [
       "DOM",
@@ -13,6 +13,7 @@
       "ScriptHost"
     ],
     "declaration": true,
+    "declarationMap": true,
     "composite": true,
     "moduleResolution": "node",
     "skipLibCheck": true,

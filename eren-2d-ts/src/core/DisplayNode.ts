@@ -1,5 +1,5 @@
 import { Container } from 'pixi.js';
-import GameObject from './GameObject';
+import GameObject from './GameObject.js';
 
 export default class DisplayNode {
   constructor(container: Container) { }

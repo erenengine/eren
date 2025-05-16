@@ -1,5 +1,5 @@
 import { Assets, Sprite as PixiSprite, Texture } from 'pixi.js';
-import DisplayNode from '../core/DisplayNode';
+import DisplayNode from '../core/DisplayNode.js';
 
 export default class Sprite extends DisplayNode {
   constructor(x: number, y: number, assetId: string) {
