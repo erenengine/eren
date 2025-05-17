@@ -6,7 +6,9 @@ export default class GameObject extends DisplayNode {
     super(new Container({ x, y }));
   }
 
-  add(...children: GameObject[]): void {
-    throw new Error('Not implemented');
+  add(...children: DisplayNode[]): void {
+    for (const child of children) {
+      child.addTo(this);
+    }
   }
 }

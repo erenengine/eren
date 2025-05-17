@@ -1,5 +1,7 @@
 import { Application, Graphics } from 'pixi.js';
+import Stats from 'stats.js';
 import GameObject from '../core/GameObject.js';
+import GameSettings from '../GameSettings.js';
 
 export default class Renderer {
   stage = new GameObject(0, 0);
@@ -18,12 +20,23 @@ export default class Renderer {
     await this.app.init({ resizeTo: window });
     document.body.appendChild(this.app.canvas);
 
+    if (GameSettings.debug) {
+      const stats = new Stats();
+      stats.showPanel(0);
+      document.body.appendChild(stats.dom);
+
+      this.app.ticker.add(() => stats.update());
+    }
+
     this.resize();
     this.app.renderer.on('resize', this.resize.bind(this));
 
-    /*const graphics = new Graphics().rect(this.width / 2, this.height / 2, this.width, this.height).fill(0xFF0000);
-    graphics.pivot.set(this.width / 2, this.height / 2);
-    this.app.stage.addChild(graphics);*/
+    const mask = new Graphics().rect(0, 0, this.width, this.height).fill();
+    this.app.stage.mask = mask;
+    this.app.stage.addChild(new Graphics().rect(0, 0, this.width, this.height).fill(0x304C79));
+
+    this.stage['container'].pivot.set(-this.width / 2, -this.height / 2);
+    this.app.stage.addChild(this.stage['container']);
   }
 
   private resize() {

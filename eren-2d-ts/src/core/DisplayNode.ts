@@ -2,22 +2,22 @@ import { Container } from 'pixi.js';
 import GameObject from './GameObject.js';
 
 export default class DisplayNode {
-  constructor(container: Container) { }
+  constructor(private container: Container) { }
 
   addTo(parent: GameObject): this {
-    throw new Error('Not implemented');
+    parent.container.addChild(this.container);
     return this;
   }
 
   remove() {
-    throw new Error('Not implemented');
+    this.container.destroy({ children: true });
   }
 
   show() {
-    throw new Error('Not implemented');
+    this.container.visible = true;
   }
 
   hide() {
-    throw new Error('Not implemented');
+    this.container.visible = false;
   }
 }
