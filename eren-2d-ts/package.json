@@ -4,6 +4,7 @@
   "types": "./dist/index.d.ts",
   "main": "./dist/index.js",
   "dependencies": {
+    "@pixi/devtools": "^2.0.1",
     "@pixi/layout": "^3.0.2",
     "@pixi/ui": "^2.2.4",
     "matter-js": "^0.20.0",
