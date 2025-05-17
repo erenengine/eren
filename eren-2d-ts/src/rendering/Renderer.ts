@@ -1,9 +1,9 @@
-import { Application, Graphics, Rectangle, RenderLayerClass } from 'pixi.js';
+import { initDevtools } from '@pixi/devtools';
+import { Application, Graphics, RenderLayerClass } from 'pixi.js';
 import Stats from 'stats.js';
+import DisplayNode from '../core/DisplayNode.js';
 import GameObject from '../core/GameObject.js';
 import GameSettings from '../GameSettings.js';
-import DisplayNode from '../core/DisplayNode.js';
-import { initDevtools } from '@pixi/devtools';
 
 export default class Renderer {
   stage = new GameObject(0, 0);
@@ -13,13 +13,7 @@ export default class Renderer {
 
   private app = new Application();
   private layers: Record<string, RenderLayerClass> = {};
-
-  private letterboxes = {
-    top: new Graphics(),
-    bottom: new Graphics(),
-    left: new Graphics(),
-    right: new Graphics(),
-  };
+  private letterbox = new Graphics();
 
   constructor(gameSize: `${number}x${number}`) {
     this.width = parseInt(gameSize.split('x')[0]);
@@ -28,7 +22,7 @@ export default class Renderer {
   }
 
   private async init() {
-    await this.app.init({ resizeTo: window, resolution: window.devicePixelRatio });
+    await this.app.init({ resizeTo: window, resolution: window.devicePixelRatio, autoDensity: true });
     document.body.appendChild(this.app.canvas);
 
     if (GameSettings.debug) {
@@ -47,12 +41,7 @@ export default class Renderer {
     const letterboxLayer = new RenderLayerClass();
     letterboxLayer.zIndex = Infinity;
     letterboxLayer.sortableChildren = false;
-    letterboxLayer.attach(
-      this.letterboxes.top,
-      this.letterboxes.bottom,
-      this.letterboxes.left,
-      this.letterboxes.right,
-    );
+    letterboxLayer.attach(this.letterbox);
     this.app.stage.addChild(letterboxLayer);
 
     this.app.stage.addChild(new Graphics().rect(0, 0, this.width, this.height).fill(0x304C79));
@@ -74,22 +63,24 @@ export default class Renderer {
   }
 
   private resize() {
-    const scaleX = this.app.renderer.width / this.width;
-    const scaleY = this.app.renderer.height / this.height;
-    const scale = Math.min(scaleX, scaleY);
+    const { renderer, stage } = this.app;
 
-    this.app.stage.scale = scale;
+    const scaleX = renderer.width / this.width;
+    const scaleY = renderer.height / this.height;
+    const scale = Math.min(scaleX, scaleY);
+    stage.scale = scale;
+
     const viewportW = this.width * scale;
     const viewportH = this.height * scale;
-    const padX = (this.app.renderer.width - viewportW) / 2;
-    const padY = (this.app.renderer.height - viewportH) / 2;
-    this.app.stage.position.set(padX, padY);
+    const padX = (renderer.width - viewportW) / 2;
+    const padY = (renderer.height - viewportH) / 2;
+    stage.position.set(padX, padY);
 
-    const { top, bottom, left, right } = this.letterboxes;
-    top.clear().rect(0, -padY / scale, this.width / scale, padY / scale).fill(0x000000);
-    bottom.clear().rect(0, this.height, this.width / scale, padY / scale).fill(0x000000);
-    left.clear().rect(-padX / scale, 0, padX / scale, this.height / scale).fill(0x000000);
-    right.clear().rect(this.width, 0, padX / scale, this.height / scale).fill(0x000000);
+    this.letterbox.clear()
+      .rect(0, -padY / scale, this.width / scale, padY / scale)
+      .rect(0, this.height, this.width / scale, padY / scale)
+      .rect(-padX / scale, 0, padX / scale, this.height / scale)
+      .rect(this.width, 0, padX / scale, this.height / scale).fill(0x000000);
   }
 
   private attachToLayer(displayNode: DisplayNode, layer: string) {
