@@ -28,7 +28,7 @@ export default class Renderer {
   }
 
   private async init() {
-    await this.app.init({ resizeTo: window });
+    await this.app.init({ resizeTo: window, resolution: window.devicePixelRatio });
     document.body.appendChild(this.app.canvas);
 
     if (GameSettings.debug) {
