@@ -1,3 +1,5 @@
+import myShader from '../wgsl/test.wgsl';
+
 async function webgpu() {
   if (!navigator.gpu) {
     console.error("WebGPU is not available.");
@@ -33,6 +35,35 @@ async function webgpu() {
 
   context.configure(canvasConfig);
 
+  const shaderModule = device.createShaderModule(myShader);
+  const pipelineLayoutDesc = { bindGroupLayouts: [] };
+  const layout = device.createPipelineLayout(pipelineLayoutDesc);
+
+  const colorState: GPUColorTargetState = {
+    format: 'bgra8unorm'
+  };
+
+  const pipelineDesc: GPURenderPipelineDescriptor = {
+    layout,
+    vertex: {
+      module: shaderModule,
+      entryPoint: 'vs_main',
+      buffers: []
+    },
+    fragment: {
+      module: shaderModule,
+      entryPoint: 'fs_main',
+      targets: [colorState]
+    },
+    primitive: {
+      topology: 'triangle-list',
+      frontFace: 'ccw',
+      cullMode: 'back'
+    }
+  };
+
+  const pipeline = device.createRenderPipeline(pipelineDesc);
+
   let colorTexture = context.getCurrentTexture();
   let colorTextureView = colorTexture.createView();
 
@@ -51,6 +82,8 @@ async function webgpu() {
 
   const passEncoder = commandEncoder.beginRenderPass(renderPassDesc);
   passEncoder.setViewport(0, 0, canvas.width, canvas.height, 0, 1);
+  passEncoder.setPipeline(pipeline);
+  passEncoder.draw(3, 1);
   passEncoder.end();
 
   device.queue.submit([commandEncoder.finish()]);
