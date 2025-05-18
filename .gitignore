@@ -4,3 +4,6 @@ Thumbs.db
 
 # 빌드
 dist/
+
+# 환경 설정
+.env
