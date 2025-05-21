@@ -1,7 +1,7 @@
-import GameSettings from '../../../dist/GameSettings.js';
-import Renderer from '../../../dist/rendering/Renderer.js';
-import AssetLoader from '../../../dist/assets/AssetLoader.js';
-import Sprite from '../../../dist/sprite/Sprite.js';
+import GameSettings from '../../dist/GameSettings.js';
+import Renderer from '../../dist/rendering/Renderer.js';
+import AssetLoader from '../../dist/assets/AssetLoader.js';
+import Sprite from '../../dist/sprite/Sprite.js';
 
 GameSettings.debug = true;
 GameSettings.limitFPSWhenUnfocused = true;

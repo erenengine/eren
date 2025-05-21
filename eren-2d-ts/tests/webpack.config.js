@@ -3,11 +3,11 @@ const webpack = require('webpack');
 
 module.exports = {
   entry: {
-    'test-sprite': './tests/test-sprite/index.ts',
+    'test-sprite': './test-sprite/index.ts',
   },
   output: {
     filename: '[name]/bundle.js',
-    path: path.resolve(__dirname, 'tests')
+    path: path.resolve(__dirname, './')
   },
   plugins: [
     new webpack.optimize.LimitChunkCountPlugin({
