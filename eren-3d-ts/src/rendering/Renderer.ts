@@ -34,7 +34,7 @@ export default class Renderer {
     const box = MeshBuilder.CreateBox("box", { size: 2 }, this.scene);
 
     const boxMaterial = new StandardMaterial("boxMaterial", this.scene);
-    boxMaterial.diffuseTexture = new Texture("https://playground.babylonjs.com/textures/crate.png", this.scene);
+    boxMaterial.diffuseTexture = new Texture("assets/sprite.jpg", this.scene);
     box.material = boxMaterial;
 
     this.scene.registerBeforeRender(() => {
