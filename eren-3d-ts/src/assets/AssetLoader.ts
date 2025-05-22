@@ -11,7 +11,7 @@ class AssetLoader {
     };
   } = {};
 
-  public getModel(id: string) {
+  public getModelData(id: string) {
     if (this.models[id]) {
       return this.models[id];
     }
