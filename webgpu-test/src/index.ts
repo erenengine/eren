@@ -2,26 +2,26 @@ import myShader from '../wgsl/test.wgsl';
 
 async function webgpu() {
   if (!navigator.gpu) {
-    alert("WebGPU is not available.");
-    throw new Error("WebGPU support is not available");
+    alert('WebGPU is not available.');
+    throw new Error('WebGPU support is not available');
   }
 
   const adapter = await navigator.gpu.requestAdapter();
   if (!adapter) {
-    alert("Failed to request Adapter.");
+    alert('Failed to request Adapter.');
     return;
   }
 
   let device = await adapter.requestDevice();
   if (!device) {
-    alert("Failed to request Device.");
+    alert('Failed to request Device.');
     return;
   }
 
   const canvas = document.getElementById('canvas') as HTMLCanvasElement;
   const context = canvas.getContext('webgpu');
   if (!context) {
-    alert("Failed to get WebGPU context.");
+    alert('Failed to get WebGPU context.');
     return;
   }
 

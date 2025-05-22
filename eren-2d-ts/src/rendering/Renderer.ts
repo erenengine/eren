@@ -52,9 +52,9 @@ export default class Renderer {
 
     if (GameSettings.limitFPSWhenUnfocused) {
       if (!document.hasFocus()) this.app.ticker.maxFPS = 6;
-      window.addEventListener("blur", () => this.app.ticker.maxFPS = 6);
-      window.addEventListener("focus", () => this.app.ticker.maxFPS = 0);
-      window.addEventListener("pageshow", (event) => {
+      window.addEventListener('blur', () => this.app.ticker.maxFPS = 6);
+      window.addEventListener('focus', () => this.app.ticker.maxFPS = 0);
+      window.addEventListener('pageshow', (event) => {
         if (event.persisted) this.app.ticker.maxFPS = 0;
       });
     }

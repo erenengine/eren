@@ -25,11 +25,11 @@ class AssetLoader {
     return new Promise<void>((resolve, reject) => {
       const assetsManager = new AssetsManager();
       for (const asset of assets) {
-        const splitSrc = asset.src.split("/");
-        const rootUrl = splitSrc.slice(0, splitSrc.length - 1).join("/") + "/";
+        const splitSrc = asset.src.split('/');
+        const rootUrl = splitSrc.slice(0, splitSrc.length - 1).join('/') + '/';
         const fileName = splitSrc[splitSrc.length - 1];
 
-        if (fileName.endsWith(".glb")) {
+        if (fileName.endsWith('.glb')) {
           const task = assetsManager.addMeshTask(asset.id, '', rootUrl, fileName);
           task.onSuccess = (task) => {
             console.log(`Loaded ${task.name}`);
@@ -63,7 +63,7 @@ class AssetLoader {
         console.log(`Loading: ${lastFinishedTask.name} (${remainingCount}/${totalCount})`);
       };
       assetsManager.onFinish = () => {
-        console.log("All assets loaded", this.models);
+        console.log('All assets loaded', this.models);
         resolve();
       };
       assetsManager.load();

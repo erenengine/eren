@@ -1,4 +1,4 @@
-declare module "*.wgsl" {
+declare module '*.wgsl' {
   const value: GPUShaderModuleDescriptor;
   export default value;
 }
