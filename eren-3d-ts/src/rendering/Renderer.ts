@@ -1,6 +1,7 @@
 import { ArcRotateCamera, Engine, HemisphericLight, MeshBuilder, Scene, StandardMaterial, Texture, Vector3 } from '@babylonjs/core';
 import Stats from 'stats.js';
 import GameSettings from '../GameSettings.js';
+import Camera from './Camera.js';
 
 export default class Renderer {
 
@@ -23,11 +24,6 @@ export default class Renderer {
 
     const engine = new Engine(this.canvas, true);
     this.scene = new Scene(engine);
-
-    const camera = new ArcRotateCamera("camera",
-      Math.PI / 4, Math.PI / 4, 5,
-      Vector3.Zero(), this.scene);
-    camera.attachControl(this.canvas, true);
 
     new HemisphericLight("light", new Vector3(1, 1, 0), this.scene);
 
@@ -95,5 +91,9 @@ export default class Renderer {
     const windowHeight = window.innerHeight;
     this.canvas.width = windowWidth;
     this.canvas.height = windowHeight;
+  }
+
+  public set camera(camera: Camera) {
+    camera.setScene(this.scene);
   }
 }

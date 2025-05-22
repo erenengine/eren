@@ -30,7 +30,7 @@ class AssetLoader {
         const fileName = splitSrc[splitSrc.length - 1];
 
         if (fileName.endsWith(".glb")) {
-          const task = assetsManager.addMeshTask(asset.id, "", rootUrl, fileName);
+          const task = assetsManager.addMeshTask(asset.id, '', rootUrl, fileName);
           task.onSuccess = (task) => {
             console.log(`Loaded ${task.name}`);
 
