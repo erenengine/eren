@@ -2,6 +2,7 @@ import { ArcRotateCamera, Engine, HemisphericLight, MeshBuilder, Scene, Standard
 import Stats from 'stats.js';
 import GameSettings from '../GameSettings.js';
 import Camera from './Camera.js';
+import Light from '../lights/Light.js';
 
 export default class Renderer {
 
@@ -24,8 +25,6 @@ export default class Renderer {
 
     const engine = new Engine(this.canvas, true);
     this.scene = new Scene(engine);
-
-    new HemisphericLight("light", new Vector3(1, 1, 0), this.scene);
 
     const box = MeshBuilder.CreateBox("box", { size: 2 }, this.scene);
 
@@ -95,5 +94,9 @@ export default class Renderer {
 
   public set camera(camera: Camera) {
     camera.setScene(this.scene);
+  }
+
+  public set light(light: Light) {
+    light.setScene(this.scene);
   }
 }

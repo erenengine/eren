@@ -1,5 +1,9 @@
-import { Light as BabylonLight } from '@babylonjs/core';
+import { Light as BabylonLight, Scene } from '@babylonjs/core';
 
-export default class Light {
-  constructor(light: BabylonLight) { }
+export default abstract class Light {
+  protected abstract createLight(scene: Scene): BabylonLight;
+
+  setScene(scene: Scene) {
+    this.createLight(scene);
+  }
 }
