@@ -4,8 +4,10 @@
   "types": "./dist/index.d.ts",
   "main": "./dist/index.js",
   "dependencies": {
-    "@babylonjs/core": "^8.7.0",
-    "stats.js": "^0.17.0"
+    "@babylonjs/core": "^8.8.5",
+    "@babylonjs/loaders": "^8.8.5",
+    "stats.js": "^0.17.0",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@types/stats.js": "^0.17.4",

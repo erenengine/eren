@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "webpack-dev": "webpack-dev-server --mode development --static ."
+  },
   "devDependencies": {
     "ts-loader": "^9.5.2",
     "typescript": "^5.8.3",
