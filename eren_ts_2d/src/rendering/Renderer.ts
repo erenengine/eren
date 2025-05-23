@@ -1,9 +1,8 @@
+import { FPSDisplay, GameSettings } from '@erenengine/core';
 import { initDevtools } from '@pixi/devtools';
 import { Application, Graphics, RenderLayerClass } from 'pixi.js';
-import Stats from 'stats.js';
 import DisplayNode from '../core/DisplayNode.js';
 import GameObject from '../core/GameObject.js';
-import GameSettings from '../GameSettings.js';
 
 export default class Renderer {
   stage = new GameObject(0, 0);
@@ -28,11 +27,8 @@ export default class Renderer {
     if (GameSettings.debug) {
       initDevtools(this.app);
 
-      const stats = new Stats();
-      stats.showPanel(0);
-      document.body.appendChild(stats.dom);
-
-      this.app.ticker.add(() => stats.update());
+      const fpsDisplay = new FPSDisplay();
+      this.app.ticker.add(() => fpsDisplay.update());
     }
 
     this.resize();

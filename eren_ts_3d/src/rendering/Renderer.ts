@@ -1,7 +1,6 @@
 import { Engine, Scene, TransformNode } from '@babylonjs/core';
-import Stats from 'stats.js';
+import { FPSDisplay, GameSettings } from '@erenengine/core';
 import DisplayNode from '../core/DisplayNode.js';
-import GameSettings from '../GameSettings.js';
 import Light from '../lights/Light.js';
 import Camera from './Camera.js';
 
@@ -13,7 +12,7 @@ export default class Renderer {
 
   private canvas: HTMLCanvasElement;
   private scene: Scene;
-  private stats: Stats | undefined;
+  private fpsDisplay: FPSDisplay | undefined;
 
   constructor(gameSize: `${number}x${number}`) {
     this.width = parseInt(gameSize.split('x')[0]);
@@ -29,11 +28,7 @@ export default class Renderer {
     this.scene = new Scene(engine);
     this.stage = new DisplayNode(new TransformNode('', this.scene));
 
-    if (GameSettings.debug) {
-      this.stats = new Stats();
-      this.stats.showPanel(0);
-      document.body.appendChild(this.stats.dom);
-    }
+    if (GameSettings.debug) this.fpsDisplay = new FPSDisplay();
 
     engine.runRenderLoop(() => this._render());
 
@@ -49,14 +44,14 @@ export default class Renderer {
 
   private _render = () => {
     this.scene.render();
-    this.stats?.update();
+    this.fpsDisplay?.update();
   };
 
   private changeFPS(fps: number | undefined) {
     if (fps === undefined) {
       this._render = () => {
         this.scene.render();
-        this.stats?.update();
+        this.fpsDisplay?.update();
       };
     } else {
 
@@ -70,7 +65,7 @@ export default class Renderer {
 
         if (delta >= frameDuration) {
           this.scene.render();
-          this.stats?.update();
+          this.fpsDisplay?.update();
           lastFrameTime = now - (delta % frameDuration);
         }
       };

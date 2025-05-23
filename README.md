@@ -5,10 +5,10 @@
 
 에렌 엔진은 여러 모듈로 나뉩니다.
 
-1. [`eren_ts_2d`](eren_ts_2d), TypeScript 기반의 2D 게임 엔진입니다.
-1. [`eren_ts_3d`](eren_ts_3d), TypeScript 기반의 3D 게임 엔진입니다.
 1. [`eren_rs_2d`](eren_rs_2d), Rust 기반의 2D 게임 엔진입니다.
 1. [`eren_rs_3d`](eren_rs_3d), Rust 기반의 3D 게임 엔진입니다.
+1. [`eren_ts_2d`](eren_ts_2d), TypeScript 기반의 2D 게임 엔진입니다.
+1. [`eren_ts_3d`](eren_ts_3d), TypeScript 기반의 3D 게임 엔진입니다.
 
 ## 커뮤니티
 - [네이버 카페](https://cafe.naver.com/erenengine)
