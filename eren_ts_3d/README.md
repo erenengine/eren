@@ -6,9 +6,9 @@
 ## 설치
 [npm](https://www.npmjs.com/) 또는 [yarn](https://yarnpkg.com/)을 사용하여 설치할 수 있습니다.
 ```bash
-npm install erenengine
+npm install @erenengine/3d
 # 또는
-yarn add erenengine
+yarn add @erenengine/3d
 ```
 
 ## 라이센스
