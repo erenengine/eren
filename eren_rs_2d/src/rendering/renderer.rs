@@ -1,4 +1,4 @@
-use super::{context::Context, create_window::create_window};
+use eren_core::{Context, create_window};
 
 pub struct Renderer {}
 
