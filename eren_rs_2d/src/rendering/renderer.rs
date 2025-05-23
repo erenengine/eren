@@ -1,11 +1,10 @@
-use eren_core::{Context, create_window};
+use eren_core::Context;
 
 pub struct Renderer {}
 
 impl Renderer {
-    pub async fn new(width: u32, height: u32, title: &str) -> Self {
-        let window = create_window(width, height, title).await;
-        let context = Context::new(window).await;
+    pub fn new(width: u32, height: u32, title: &str) -> Self {
+        let context = Context::new(width, height, title, |path| {});
         Self {}
     }
 }
