@@ -8,7 +8,7 @@ import Model from '../../dist/model/Model.js';
 GameSettings.debug = true;
 GameSettings.limitFPSWhenUnfocused = true;
 
-const renderer = new Renderer('1280x720');
+const renderer = new Renderer();
 renderer.camera = new Camera(0, 0, 4);
 renderer.light = new HemisphereLight(1, 1, 0);
 

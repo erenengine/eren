@@ -11,7 +11,7 @@ export default class Renderer {
   private scene: Scene;
   private fpsDisplay: FPSDisplay | undefined;
 
-  constructor(public width: number, public height: number) {
+  constructor() {
     this.canvas = document.createElement('canvas');
     document.body.appendChild(this.canvas);
 
