@@ -51,13 +51,11 @@ class AssetLoader {
           };
         }
 
-        else {
-          throw new Error(`Unsupported asset type: ${fileName}`);
-        }
+        else throw new Error(`Unsupported asset type: ${fileName}`);
       }
       assetsManager.onProgress = (remainingCount, totalCount, lastFinishedTask) => {
-        const progress = (totalCount - remainingCount) / totalCount;
         if (onProgress) {
+          const progress = (totalCount - remainingCount) / totalCount;
           onProgress(progress);
         }
         console.log(`Loading: ${lastFinishedTask.name} (${remainingCount}/${totalCount})`);
