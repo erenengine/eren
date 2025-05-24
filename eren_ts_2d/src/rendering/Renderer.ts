@@ -7,16 +7,11 @@ import GameObject from '../core/GameObject.js';
 export default class Renderer {
   stage = new GameObject(0, 0);
 
-  width: number;
-  height: number;
-
   private app = new Application();
   private layers: Record<string, RenderLayerClass> = {};
   private letterbox = new Graphics();
 
-  constructor(gameSize: `${number}x${number}`) {
-    this.width = parseInt(gameSize.split('x')[0]);
-    this.height = parseInt(gameSize.split('x')[1]);
+  constructor(public width: number, public height: number) {
     this.init();
   }
 

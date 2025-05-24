@@ -7,17 +7,11 @@ import Camera from './Camera.js';
 export default class Renderer {
   stage: DisplayNode;
 
-  width: number;
-  height: number;
-
   private canvas: HTMLCanvasElement;
   private scene: Scene;
   private fpsDisplay: FPSDisplay | undefined;
 
-  constructor(gameSize: `${number}x${number}`) {
-    this.width = parseInt(gameSize.split('x')[0]);
-    this.height = parseInt(gameSize.split('x')[1]);
-
+  constructor(public width: number, public height: number) {
     this.canvas = document.createElement('canvas');
     document.body.appendChild(this.canvas);
 
