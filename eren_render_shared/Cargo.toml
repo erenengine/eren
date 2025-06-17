@@ -1,5 +1,5 @@
 [package]
-name = "eren_render_core"
+name = "eren_render_shared"
 version = "0.1.0"
 edition = "2024"
 
