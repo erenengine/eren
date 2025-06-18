@@ -4,33 +4,10 @@ use thiserror::Error;
 use winit::{
     application::ApplicationHandler,
     error::EventLoopError,
-    event::{StartCause, WindowEvent},
-    event_loop::{ActiveEventLoop, EventLoop},
-    window::{Window, WindowId},
+    event::StartCause,
+    event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
+    window::Window,
 };
-
-#[cfg(not(target_arch = "wasm32"))]
-use winit::{dpi::LogicalSize, event_loop::ControlFlow};
-
-#[cfg(target_arch = "wasm32")]
-use {
-    wasm_bindgen::JsCast,
-    web_sys::HtmlCanvasElement,
-    winit::platform::web::{EventLoopExtWebSys, WindowAttributesExtWebSys},
-};
-
-#[derive(Debug, Error)]
-pub enum WindowLifecycleManagerError {
-    #[error("Event loop error: {0}")]
-    EventLoopError(#[from] EventLoopError),
-}
-
-pub struct WindowConfig {
-    pub width: u32,
-    pub height: u32,
-    pub title: &'static str,
-    pub canvas_id: Option<&'static str>,
-}
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct WindowSize {
@@ -40,18 +17,38 @@ pub struct WindowSize {
 }
 
 pub trait WindowEventHandler {
-    fn on_window_ready(&mut self, window: Arc<Window>);
-    fn on_window_lost(&mut self);
-    fn on_window_resized(&mut self, size: WindowSize);
-    fn redraw(&mut self);
-    fn on_window_close_requested(&mut self);
+    fn on_window_ready(&mut self, window: Arc<Window>) -> impl Future<Output = ()> + Send; // 윈도우가 생성되었을 때 -> GPU 리소스 할당
+
+    fn on_window_lost(&mut self); // 윈도우가 없어졌을 때 -> GPU 리소스 해제
+
+    fn on_window_resized(&mut self, size: WindowSize); // 윈도우 크기가 변경되었을 때 -> 서피스 재설정
+
+    fn on_window_close_requested(&mut self); // 윈도우가 닫히는 요청을 받았을 때 -> GPU 리소스 해제
+
+    fn on_redraw_requested(&mut self); // 윈도우가 다시 그려질 때 -> GPU에 그리기
 }
 
-pub struct WindowLifecycleManager<E: WindowEventHandler> {
+#[derive(Debug, Error)]
+pub enum WindowLifecycleManagerError {
+    #[error("Event loop error: {0}")]
+    EventLoopError(#[from] EventLoopError),
+}
+
+#[derive(Debug)]
+pub struct WindowConfig {
+    pub width: u32,
+    pub height: u32,
+    pub title: &'static str,
+    pub canvas_id: Option<&'static str>,
+}
+
+pub struct WindowLifecycleManager<E: WindowEventHandler + 'static> {
     config: WindowConfig,
     event_handler: E,
+
+    proxy: Option<EventLoopProxy<E>>,
     window: Option<Arc<Window>>,
-    current_window_size: Option<WindowSize>,
+    window_size: Option<WindowSize>,
 }
 
 impl<E: WindowEventHandler> WindowLifecycleManager<E> {
@@ -59,8 +56,10 @@ impl<E: WindowEventHandler> WindowLifecycleManager<E> {
         Self {
             config,
             event_handler,
+
+            proxy: None,
             window: None,
-            current_window_size: None,
+            window_size: None,
         }
     }
 
@@ -70,34 +69,43 @@ impl<E: WindowEventHandler> WindowLifecycleManager<E> {
             return;
         }
 
-        if self.current_window_size != Some(new_size) {
-            self.current_window_size = Some(new_size);
+        if self.window_size != Some(new_size) {
+            self.window_size = Some(new_size);
             self.event_handler.on_window_resized(new_size);
         }
     }
 }
 
-impl<E> WindowLifecycleManager<E>
-where
-    E: WindowEventHandler + 'static,
-{
-    #[cfg(target_arch = "wasm32")]
-    pub fn start_event_loop(self) -> Result<(), WindowLifecycleManagerError> {
-        let event_loop = EventLoop::new()?;
-        event_loop.spawn_app(self);
+impl<E: WindowEventHandler> WindowLifecycleManager<E> {
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn start_event_loop(&mut self) -> Result<(), WindowLifecycleManagerError> {
+        use winit::event_loop::ControlFlow;
+
+        let event_loop = EventLoop::<E>::with_user_event().build()?;
+        event_loop.set_control_flow(ControlFlow::Poll);
+        event_loop.run_app(self)?;
+
         Ok(())
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn start_event_loop(&mut self) -> Result<(), WindowLifecycleManagerError> {
-        let event_loop = EventLoop::new()?;
-        event_loop.set_control_flow(ControlFlow::Poll);
-        event_loop.run_app(self)?;
+    #[cfg(target_arch = "wasm32")]
+    pub fn start_event_loop(self) -> Result<(), WindowLifecycleManagerError> {
+        use winit::platform::web::EventLoopExtWebSys;
+
+        let event_loop = EventLoop::<E>::with_user_event().build()?;
+
+        // self를 move하기 전에 proxy 설정
+        let mut manager = self;
+        manager.proxy = Some(event_loop.create_proxy());
+
+        event_loop.spawn_app(manager);
+
         Ok(())
     }
 }
 
-impl<E: WindowEventHandler> ApplicationHandler for WindowLifecycleManager<E> {
+impl<E: WindowEventHandler> ApplicationHandler<E> for WindowLifecycleManager<E> {
+    #[cfg(not(target_arch = "wasm32"))]
     fn new_events(&mut self, _: &ActiveEventLoop, cause: StartCause) {
         if let Some(window) = &self.window {
             if let StartCause::Poll = cause {
@@ -106,7 +114,7 @@ impl<E: WindowEventHandler> ApplicationHandler for WindowLifecycleManager<E> {
         }
     }
 
-    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+    fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         if self.window.is_some() {
             return;
         }
@@ -114,6 +122,8 @@ impl<E: WindowEventHandler> ApplicationHandler for WindowLifecycleManager<E> {
         let raw_window = {
             #[cfg(not(target_arch = "wasm32"))]
             {
+                use winit::dpi::LogicalSize;
+
                 event_loop
                     .create_window(
                         Window::default_attributes()
@@ -128,6 +138,10 @@ impl<E: WindowEventHandler> ApplicationHandler for WindowLifecycleManager<E> {
 
             #[cfg(target_arch = "wasm32")]
             {
+                use wasm_bindgen::JsCast;
+                use web_sys::HtmlCanvasElement;
+                use winit::platform::web::WindowAttributesExtWebSys;
+
                 // Look up the target <canvas> from the HTML document.
                 let canvas: HtmlCanvasElement = {
                     let window = web_sys::window().expect("No global `window`");
@@ -152,49 +166,40 @@ impl<E: WindowEventHandler> ApplicationHandler for WindowLifecycleManager<E> {
 
         let window = Arc::new(raw_window);
 
-        self.event_handler.on_window_ready(window.clone());
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            // 웹 환경이 아니라면 pollster를 사용하여
+            // future를 동기적으로 기다릴 수 있습니다
+            pollster::block_on(self.event_handler.on_window_ready(window.clone()));
+        }
+
+        //#[cfg(target_arch = "wasm32")]
+        {
+            // future를 비동기적으로 실행하고
+            // proxy를 사용해 결과를 이벤트 루프로 보냅니다
+            if let Some(proxy) = self.proxy.take() {
+                wasm_bindgen_futures::spawn_local(async move {
+                    assert!(
+                        proxy
+                            .send_event(
+                                State::new(window)
+                                    .await
+                                    .expect("Unable to create canvas!!!")
+                            )
+                            .is_ok()
+                    )
+                });
+            }
+        }
+
         self.window = Some(window);
     }
 
-    fn window_event(&mut self, event_loop: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
-        match event {
-            WindowEvent::Resized(size) => {
-                if let Some(window) = &self.window {
-                    self.handle_resize_event(WindowSize {
-                        width: size.width,
-                        height: size.height,
-                        scale_factor: window.scale_factor(),
-                    });
-                }
-            }
-            WindowEvent::CloseRequested => {
-                self.event_handler.on_window_close_requested();
-                event_loop.exit();
-            }
-            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                if let Some(window) = &self.window {
-                    let inner = window.inner_size();
-                    self.handle_resize_event(WindowSize {
-                        width: inner.width,
-                        height: inner.height,
-                        scale_factor,
-                    });
-                }
-            }
-            WindowEvent::RedrawRequested => {
-                self.event_handler.redraw();
-
-                #[cfg(target_arch = "wasm32")]
-                if let Some(window) = &self.window {
-                    window.request_redraw();
-                }
-            }
-            _ => {}
-        }
-    }
-
-    fn suspended(&mut self, _: &ActiveEventLoop) {
-        self.window = None;
-        self.event_handler.on_window_lost();
+    fn window_event(
+        &mut self,
+        event_loop: &winit::event_loop::ActiveEventLoop,
+        window_id: winit::window::WindowId,
+        event: winit::event::WindowEvent,
+    ) {
     }
 }
