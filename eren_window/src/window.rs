@@ -1,31 +1,27 @@
-use std::sync::Arc;
-
 use thiserror::Error;
 use winit::{
     application::ApplicationHandler,
     error::EventLoopError,
-    event::StartCause,
-    event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
-    window::Window,
+    event::WindowEvent,
+    event_loop::{ActiveEventLoop, EventLoop},
+    window::{Window, WindowId},
 };
 
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub struct WindowSize {
-    pub width: u32,
-    pub height: u32,
-    pub scale_factor: f64,
-}
+#[cfg(target_arch = "wasm32")]
+use winit::event_loop::EventLoopProxy;
 
 pub trait WindowEventHandler {
-    fn on_window_ready(&mut self, window: Arc<Window>) -> impl Future<Output = ()> + Send; // 윈도우가 생성되었을 때 -> GPU 리소스 할당
+    // 윈도우가 생성되었을 때 -> GPU 리소스 할당
+    fn new(window: Window) -> impl Future<Output = Self> + Send;
 
-    fn on_window_lost(&mut self); // 윈도우가 없어졌을 때 -> GPU 리소스 해제
+    // 윈도우 크기가 변경되었을 때 -> 서피스 재설정
+    fn on_resized(&mut self, width: u32, height: u32);
 
-    fn on_window_resized(&mut self, size: WindowSize); // 윈도우 크기가 변경되었을 때 -> 서피스 재설정
+    // 윈도우의 scale factor가 변경되었을 때 -> 서피스 재설정
+    fn on_scale_factor_changed(&mut self, scale_factor: f64);
 
-    fn on_window_close_requested(&mut self); // 윈도우가 닫히는 요청을 받았을 때 -> GPU 리소스 해제
-
-    fn on_redraw_requested(&mut self); // 윈도우가 다시 그려질 때 -> GPU에 그리기
+    // 윈도우가 다시 그려질 때 -> GPU에 그리기
+    fn on_redraw_requested(&mut self);
 }
 
 #[derive(Debug, Error)]
@@ -44,34 +40,20 @@ pub struct WindowConfig {
 
 pub struct WindowLifecycleManager<E: WindowEventHandler + 'static> {
     config: WindowConfig,
-    event_handler: E,
+    event_handler: Option<E>,
 
+    #[cfg(target_arch = "wasm32")]
     proxy: Option<EventLoopProxy<E>>,
-    window: Option<Arc<Window>>,
-    window_size: Option<WindowSize>,
 }
 
 impl<E: WindowEventHandler> WindowLifecycleManager<E> {
-    pub fn new(config: WindowConfig, event_handler: E) -> Self {
+    pub fn new(config: WindowConfig) -> Self {
         Self {
             config,
-            event_handler,
+            event_handler: None,
 
+            #[cfg(target_arch = "wasm32")]
             proxy: None,
-            window: None,
-            window_size: None,
-        }
-    }
-
-    fn handle_resize_event(&mut self, new_size: WindowSize) {
-        // (0,0)은 일부 플랫폼에서 초기화 과정에서 나오는 값이므로 무시
-        if new_size.width == 0 || new_size.height == 0 {
-            return;
-        }
-
-        if self.window_size != Some(new_size) {
-            self.window_size = Some(new_size);
-            self.event_handler.on_window_resized(new_size);
         }
     }
 }
@@ -79,12 +61,8 @@ impl<E: WindowEventHandler> WindowLifecycleManager<E> {
 impl<E: WindowEventHandler> WindowLifecycleManager<E> {
     #[cfg(not(target_arch = "wasm32"))]
     pub fn start_event_loop(&mut self) -> Result<(), WindowLifecycleManagerError> {
-        use winit::event_loop::ControlFlow;
-
         let event_loop = EventLoop::<E>::with_user_event().build()?;
-        event_loop.set_control_flow(ControlFlow::Poll);
         event_loop.run_app(self)?;
-
         Ok(())
     }
 
@@ -99,27 +77,17 @@ impl<E: WindowEventHandler> WindowLifecycleManager<E> {
         manager.proxy = Some(event_loop.create_proxy());
 
         event_loop.spawn_app(manager);
-
         Ok(())
     }
 }
 
 impl<E: WindowEventHandler> ApplicationHandler<E> for WindowLifecycleManager<E> {
-    #[cfg(not(target_arch = "wasm32"))]
-    fn new_events(&mut self, _: &ActiveEventLoop, cause: StartCause) {
-        if let Some(window) = &self.window {
-            if let StartCause::Poll = cause {
-                window.request_redraw();
-            }
-        }
-    }
-
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        if self.window.is_some() {
+        if self.event_handler.is_some() {
             return;
         }
 
-        let raw_window = {
+        let window = {
             #[cfg(not(target_arch = "wasm32"))]
             {
                 use winit::dpi::LogicalSize;
@@ -164,42 +132,56 @@ impl<E: WindowEventHandler> ApplicationHandler<E> for WindowLifecycleManager<E> 
             }
         };
 
-        let window = Arc::new(raw_window);
-
         #[cfg(not(target_arch = "wasm32"))]
         {
             // 웹 환경이 아니라면 pollster를 사용하여
             // future를 동기적으로 기다릴 수 있습니다
-            pollster::block_on(self.event_handler.on_window_ready(window.clone()));
+            self.event_handler = Some(pollster::block_on(E::new(window)));
         }
 
-        //#[cfg(target_arch = "wasm32")]
+        #[cfg(target_arch = "wasm32")]
         {
             // future를 비동기적으로 실행하고
             // proxy를 사용해 결과를 이벤트 루프로 보냅니다
             if let Some(proxy) = self.proxy.take() {
                 wasm_bindgen_futures::spawn_local(async move {
-                    assert!(
-                        proxy
-                            .send_event(
-                                State::new(window)
-                                    .await
-                                    .expect("Unable to create canvas!!!")
-                            )
-                            .is_ok()
-                    )
+                    assert!(proxy.send_event(E::new(window).await).is_ok());
                 });
             }
         }
-
-        self.window = Some(window);
     }
 
-    fn window_event(
-        &mut self,
-        event_loop: &winit::event_loop::ActiveEventLoop,
-        window_id: winit::window::WindowId,
-        event: winit::event::WindowEvent,
-    ) {
+    #[cfg(target_arch = "wasm32")]
+    fn user_event(&mut self, _event_loop: &ActiveEventLoop, event_handler: E) {
+        // proxy.send_event()가 보낸 이벤트가 여기로 도착합니다
+        self.event_handler = Some(event_handler);
+    }
+
+    fn window_event(&mut self, event_loop: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
+        let event_handler = match &mut self.event_handler {
+            Some(event_handler) => event_handler,
+            None => return,
+        };
+
+        match event {
+            WindowEvent::Resized(size) => {
+                event_handler.on_resized(size.width, size.height);
+            }
+            WindowEvent::CloseRequested => {
+                self.event_handler = None;
+                event_loop.exit();
+            }
+            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                event_handler.on_scale_factor_changed(scale_factor);
+            }
+            WindowEvent::RedrawRequested => {
+                event_handler.on_redraw_requested();
+            }
+            _ => {}
+        }
+    }
+
+    fn suspended(&mut self, _: &ActiveEventLoop) {
+        self.event_handler = None;
     }
 }
