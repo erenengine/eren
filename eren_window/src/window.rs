@@ -14,7 +14,7 @@ use winit::event_loop::EventLoopProxy;
 
 pub trait WindowEventHandler {
     // 윈도우가 생성되었을 때 -> GPU 리소스 할당
-    fn new(window: Arc<Window>) -> impl Future<Output = Self> + Send;
+    fn new(window: Arc<Window>) -> impl Future<Output = Self>;
 
     // 윈도우 크기가 변경되었을 때 -> 서피스 재설정
     fn on_resized(&mut self, width: u32, height: u32);

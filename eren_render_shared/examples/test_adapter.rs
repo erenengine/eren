@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use eren_render_shared::instance::Instance;
+use eren_render_shared::{adapter::Adapter, instance::Instance, surface::Surface};
 use eren_window::window::{WindowConfig, WindowEventHandler, WindowLifecycle};
 use winit::window::Window;
 
@@ -26,20 +26,29 @@ fn console_log(message: &str) {
     }
 }
 
-struct TestWindowEventHandler {
+struct TestWindowEventHandler<'a> {
     window: Arc<Window>,
     instance: Instance,
+    surface: Surface<'a>,
+    adapter: Adapter,
 }
 
-impl WindowEventHandler for TestWindowEventHandler {
+impl<'a> WindowEventHandler for TestWindowEventHandler<'a> {
     async fn new(window: Arc<Window>) -> Self {
         console_log("Window created");
 
         let instance = Instance::new(window.clone()).await;
+        let surface = Surface::new(&instance).unwrap();
+        let adapter = Adapter::new(&instance, &surface).await.unwrap();
 
-        console_log("Instance created");
+        console_log("Adapter created");
 
-        Self { window, instance }
+        Self {
+            window,
+            instance,
+            surface,
+            adapter,
+        }
     }
 
     fn on_resized(&mut self, width: u32, height: u32) {
@@ -57,7 +66,7 @@ impl WindowEventHandler for TestWindowEventHandler {
     }
 }
 
-impl Drop for TestWindowEventHandler {
+impl<'a> Drop for TestWindowEventHandler<'a> {
     fn drop(&mut self) {
         console_log("Window lost");
     }

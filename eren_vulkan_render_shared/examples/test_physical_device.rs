@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
-use eren_render_vulkan_shared::instance::Instance;
+use eren_render_vulkan_shared::{instance::Instance, physical_device::PhysicalDevice};
 use eren_window::window::{WindowConfig, WindowEventHandler, WindowLifecycle};
 use winit::window::Window;
 
 struct TestWindowEventHandler {
     window: Arc<Window>,
     instance: Instance,
+    physical_device: PhysicalDevice,
 }
 
 impl WindowEventHandler for TestWindowEventHandler {
@@ -14,10 +15,15 @@ impl WindowEventHandler for TestWindowEventHandler {
         println!("Window created");
 
         let instance = Instance::new(window.clone()).unwrap();
+        let physical_device = PhysicalDevice::new(&instance).unwrap();
 
-        println!("Instance created");
+        println!("Physical device created");
 
-        Self { window, instance }
+        Self {
+            window,
+            instance,
+            physical_device,
+        }
     }
 
     fn on_resized(&mut self, width: u32, height: u32) {

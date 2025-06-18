@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 eren_window = { path = "../eren_window" }
+thiserror = "2.0.12"
 wgpu = { version = "25.0.2", features = ["webgl"] }
 winit = "0.30.11"
 

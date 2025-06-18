@@ -7,9 +7,9 @@ use winit::{raw_window_handle::HasDisplayHandle, window::Window};
 use crate::debug::{DebugMessenger, DebugMessengerError, get_debug_messenger_push_next};
 
 pub struct Instance {
-    pub window: Arc<Window>,
-    pub entry: ash::Entry,
-    pub handle: ash::Instance,
+    window: Arc<Window>,
+    entry: ash::Entry,
+    handle: ash::Instance,
 
     debug_messenger: Option<DebugMessenger>,
 }
@@ -27,6 +27,9 @@ pub enum InstanceError {
 
     #[error("Failed to create debug messenger: {0}")]
     DebugMessengerCreationError(#[from] DebugMessengerError),
+
+    #[error("Failed to enumerate physical devices: {0}")]
+    EnumeratePhysicalDevicesError(String),
 }
 
 impl Instance {
@@ -89,6 +92,18 @@ impl Instance {
             entry
                 .create_instance(&handle_info, None)
                 .map_err(|e| InstanceError::HandleCreationError(e.to_string()))
+        }
+    }
+
+    pub fn create_debug_utils(&self) -> debug_utils::Instance {
+        debug_utils::Instance::new(&self.entry, &self.handle)
+    }
+
+    pub fn enumerate_physical_devices(&self) -> Result<Vec<vk::PhysicalDevice>, InstanceError> {
+        unsafe {
+            self.handle
+                .enumerate_physical_devices()
+                .map_err(|e| InstanceError::EnumeratePhysicalDevicesError(e.to_string()))
         }
     }
 }

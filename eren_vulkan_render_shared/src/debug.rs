@@ -48,7 +48,7 @@ impl DebugMessenger {
         instance: &Instance,
         push_next: vk::DebugUtilsMessengerCreateInfoEXT,
     ) -> Result<Self, DebugMessengerError> {
-        let debug_utils = debug_utils::Instance::new(&instance.entry, &instance.handle);
+        let debug_utils = instance.create_debug_utils();
         let handle = unsafe {
             debug_utils
                 .create_debug_utils_messenger(&push_next, None)
