@@ -1,16 +1,16 @@
-use eren_window::window::{WindowConfig, WindowEventHandler, WindowLifecycleManager};
+use std::sync::Arc;
+
+use eren_window::window::{WindowConfig, WindowEventHandler, WindowLifecycle};
 use winit::window::Window;
 
 struct TestWindowEventHandler {
-    window: Window,
+    window: Arc<Window>,
 }
 
 #[cfg(target_arch = "wasm32")]
 pub fn show_error_popup_and_panic<E: std::fmt::Display>(error: E, context: &str) -> ! {
-    use web_sys::window;
-
-    let window = window().expect("no global `window` exists");
-    window
+    web_sys::window()
+        .unwrap()
         .alert_with_message(&format!("{}: {}", context, error))
         .unwrap();
 
@@ -30,7 +30,7 @@ fn console_log(message: &str) {
 }
 
 impl WindowEventHandler for TestWindowEventHandler {
-    async fn new(window: Window) -> Self {
+    async fn new(window: Arc<Window>) -> Self {
         console_log("Window created");
         Self { window }
     }
@@ -57,7 +57,7 @@ impl Drop for TestWindowEventHandler {
 }
 
 fn run() {
-    match WindowLifecycleManager::<TestWindowEventHandler>::new(WindowConfig {
+    match WindowLifecycle::<TestWindowEventHandler>::new(WindowConfig {
         width: 800,
         height: 600,
         title: "Test Window",
@@ -88,6 +88,7 @@ fn run() {
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen::prelude::wasm_bindgen(start)]
 fn start() {
+    console_error_panic_hook::set_once();
     run();
 }
 

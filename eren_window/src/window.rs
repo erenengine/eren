@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use thiserror::Error;
 use winit::{
     application::ApplicationHandler,
@@ -12,7 +14,7 @@ use winit::event_loop::EventLoopProxy;
 
 pub trait WindowEventHandler {
     // 윈도우가 생성되었을 때 -> GPU 리소스 할당
-    fn new(window: Window) -> impl Future<Output = Self> + Send;
+    fn new(window: Arc<Window>) -> impl Future<Output = Self> + Send;
 
     // 윈도우 크기가 변경되었을 때 -> 서피스 재설정
     fn on_resized(&mut self, width: u32, height: u32);
@@ -25,7 +27,7 @@ pub trait WindowEventHandler {
 }
 
 #[derive(Debug, Error)]
-pub enum WindowLifecycleManagerError {
+pub enum WindowLifecycleError {
     #[error("Event loop error: {0}")]
     EventLoopError(#[from] EventLoopError),
 }
@@ -38,7 +40,7 @@ pub struct WindowConfig {
     pub canvas_id: Option<&'static str>,
 }
 
-pub struct WindowLifecycleManager<E: WindowEventHandler + 'static> {
+pub struct WindowLifecycle<E: WindowEventHandler + 'static> {
     config: WindowConfig,
     event_handler: Option<E>,
 
@@ -46,7 +48,7 @@ pub struct WindowLifecycleManager<E: WindowEventHandler + 'static> {
     proxy: Option<EventLoopProxy<E>>,
 }
 
-impl<E: WindowEventHandler> WindowLifecycleManager<E> {
+impl<E: WindowEventHandler> WindowLifecycle<E> {
     pub fn new(config: WindowConfig) -> Self {
         Self {
             config,
@@ -58,16 +60,16 @@ impl<E: WindowEventHandler> WindowLifecycleManager<E> {
     }
 }
 
-impl<E: WindowEventHandler> WindowLifecycleManager<E> {
+impl<E: WindowEventHandler> WindowLifecycle<E> {
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn start_event_loop(&mut self) -> Result<(), WindowLifecycleManagerError> {
+    pub fn start_event_loop(&mut self) -> Result<(), WindowLifecycleError> {
         let event_loop = EventLoop::<E>::with_user_event().build()?;
         event_loop.run_app(self)?;
         Ok(())
     }
 
     #[cfg(target_arch = "wasm32")]
-    pub fn start_event_loop(self) -> Result<(), WindowLifecycleManagerError> {
+    pub fn start_event_loop(self) -> Result<(), WindowLifecycleError> {
         use winit::platform::web::EventLoopExtWebSys;
 
         let event_loop = EventLoop::<E>::with_user_event().build()?;
@@ -81,13 +83,13 @@ impl<E: WindowEventHandler> WindowLifecycleManager<E> {
     }
 }
 
-impl<E: WindowEventHandler> ApplicationHandler<E> for WindowLifecycleManager<E> {
+impl<E: WindowEventHandler> ApplicationHandler<E> for WindowLifecycle<E> {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         if self.event_handler.is_some() {
             return;
         }
 
-        let window = {
+        let raw_window = {
             #[cfg(not(target_arch = "wasm32"))]
             {
                 use winit::dpi::LogicalSize;
@@ -131,6 +133,8 @@ impl<E: WindowEventHandler> ApplicationHandler<E> for WindowLifecycleManager<E> 
                     .expect("Failed to create web window")
             }
         };
+
+        let window = Arc::new(raw_window);
 
         #[cfg(not(target_arch = "wasm32"))]
         {

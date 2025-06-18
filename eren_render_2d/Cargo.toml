@@ -3,5 +3,5 @@ name = "eren_render_2d"
 version = "0.1.0"
 edition = "2024"
 
-[lib]
-crate-type = ["rlib", "cdylib"]
+[dependencies]
+wgpu = { version = "25.0.2", features = ["webgl"] }
