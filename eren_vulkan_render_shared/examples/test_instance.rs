@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use eren_render_vulkan_core::instance::Instance;
+use eren_render_vulkan_shared::instance::Instance;
 use eren_window::window::{WindowConfig, WindowEventHandler, WindowLifecycle};
 use winit::window::Window;
 

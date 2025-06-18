@@ -1,5 +1,4 @@
 ```
-cargo run --example test_os
 cargo run --example test_window
 ```
 
