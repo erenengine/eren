@@ -106,6 +106,24 @@ impl Instance {
                 .map_err(|e| InstanceError::EnumeratePhysicalDevicesError(e.to_string()))
         }
     }
+
+    pub fn get_physical_device_features(
+        &self,
+        physical_device: vk::PhysicalDevice,
+    ) -> vk::PhysicalDeviceFeatures {
+        unsafe { self.handle.get_physical_device_features(physical_device) }
+    }
+
+    pub fn get_physical_device_extension_properties(
+        &self,
+        physical_device: vk::PhysicalDevice,
+    ) -> Vec<vk::ExtensionProperties> {
+        unsafe {
+            self.handle
+                .enumerate_device_extension_properties(physical_device)
+                .unwrap_or_else(|_| Vec::new())
+        }
+    }
 }
 
 impl Drop for Instance {
