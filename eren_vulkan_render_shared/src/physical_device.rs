@@ -37,6 +37,7 @@ fn has_required_extensions(instance: &Instance, physical_device: vk::PhysicalDev
     true
 }
 
+#[derive(Debug)]
 pub struct QueueFamilyIndices {
     pub graphics_queue_family_index: Option<u32>,
     pub compute_queue_family_index: Option<u32>,
@@ -156,6 +157,7 @@ fn find_queue_family_indices(
     }
 }
 
+#[derive(Debug)]
 pub struct PhysicalDeviceCandidate {
     pub device: vk::PhysicalDevice,
     pub indices: QueueFamilyIndices,
@@ -257,6 +259,8 @@ impl PhysicalDevice {
         surface: &Surface,
     ) -> Result<Self, PhysicalDeviceInitializationError> {
         let best_candidate = pick_best_physical_device(instance, surface)?;
+
+        log::debug!("Best physical device: {:?}", best_candidate);
 
         if let Some(candidate) = best_candidate {
             Ok(Self {
