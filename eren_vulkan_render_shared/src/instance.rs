@@ -45,6 +45,10 @@ pub enum SurfaceCreationError {
 #[error("Failed to enumerate physical devices: {0}")]
 pub struct PhysicalDevicesEnumerationError(pub String);
 
+#[derive(Debug, Error)]
+#[error("Failed to create device: {0}")]
+pub struct DeviceCreationError(pub String);
+
 impl Instance {
     pub fn new(window: Arc<Window>) -> Result<Self, InstanceInitializationError> {
         let entry = unsafe { ash::Entry::load()? };
@@ -175,6 +179,18 @@ impl Instance {
         unsafe {
             self.handle
                 .get_physical_device_queue_family_properties(physical_device)
+        }
+    }
+
+    pub fn create_device(
+        &self,
+        physical_device: vk::PhysicalDevice,
+        info: vk::DeviceCreateInfo,
+    ) -> Result<ash::Device, DeviceCreationError> {
+        unsafe {
+            self.handle
+                .create_device(physical_device, &info, None)
+                .map_err(|e| DeviceCreationError(e.to_string()))
         }
     }
 }

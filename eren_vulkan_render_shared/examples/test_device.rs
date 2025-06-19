@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use eren_render_vulkan_shared::{
-    instance::Instance, physical_device::PhysicalDevice, surface::Surface,
+    device::Device, instance::Instance, physical_device::PhysicalDevice, surface::Surface,
 };
 use eren_window::window::{WindowConfig, WindowEventHandler, WindowLifecycle};
 use winit::window::Window;
@@ -11,6 +11,7 @@ struct TestWindowEventHandler {
     instance: Option<Arc<Instance>>,
     surface: Option<Surface>,
     physical_device: Option<PhysicalDevice>,
+    device: Option<Device>,
 }
 
 impl WindowEventHandler for TestWindowEventHandler {
@@ -20,14 +21,16 @@ impl WindowEventHandler for TestWindowEventHandler {
         let instance = Arc::new(Instance::new(window.clone()).unwrap());
         let surface = Surface::new(instance.clone()).unwrap();
         let physical_device = PhysicalDevice::new(instance.clone(), &surface).unwrap();
+        let device = Device::new(&physical_device).unwrap();
 
-        log::debug!("Physical device created");
+        log::debug!("Device created");
 
         Self {
             window,
             instance: Some(instance),
             surface: Some(surface),
             physical_device: Some(physical_device),
+            device: Some(device),
         }
     }
 
@@ -51,6 +54,7 @@ impl Drop for TestWindowEventHandler {
         log::debug!("Window lost");
 
         // Drop in reverse order
+        self.device = None;
         self.physical_device = None;
         self.surface = None;
         self.instance = None;

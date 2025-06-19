@@ -26,9 +26,9 @@ unsafe extern "system" fn vulkan_debug_messenger_callback(
     _p_user_data: *mut std::ffi::c_void,
 ) -> vk::Bool32 {
     let message = unsafe { std::ffi::CStr::from_ptr((*p_callback_data).p_message) };
-    let severity = format!("{:?}", message_severity).to_lowercase();
-    let ty = format!("{:?}", message_type).to_lowercase();
-    log::debug!("[Debug][{}][{}] {:?}", severity, ty, message);
+    let severity = format!("{:#?}", message_severity).to_lowercase();
+    let ty = format!("{:#?}", message_type).to_lowercase();
+    log::debug!("[Debug][{}][{}] {:#?}", severity, ty, message);
     vk::FALSE
 }
 

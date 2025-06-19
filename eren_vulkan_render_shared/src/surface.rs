@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use ash::{khr, vk};
 use thiserror::Error;
 
@@ -20,6 +22,7 @@ pub enum SurfaceInfoQueryError {
     PresentModes(String),
 }
 
+#[derive(Debug)]
 pub struct SurfaceInfo {
     pub capabilities: vk::SurfaceCapabilitiesKHR,
     pub formats: Vec<vk::SurfaceFormatKHR>,
@@ -33,7 +36,7 @@ impl SurfaceInfo {
 }
 
 impl Surface {
-    pub fn new(instance: &Instance) -> Result<Self, SurfaceCreationError> {
+    pub fn new(instance: Arc<Instance>) -> Result<Self, SurfaceCreationError> {
         let loader = instance.create_surface_loader();
         let handle = instance.create_surface()?;
 

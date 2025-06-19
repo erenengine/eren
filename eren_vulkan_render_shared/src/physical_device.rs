@@ -1,12 +1,16 @@
-use std::ffi::CStr;
+use std::{collections::HashSet, ffi::CStr, sync::Arc};
 
 use ash::vk;
 use thiserror::Error;
 
 use crate::{
-    instance::{Instance, PhysicalDevicesEnumerationError},
-    surface::Surface,
+    instance::{DeviceCreationError, Instance, PhysicalDevicesEnumerationError},
+    surface::{Surface, SurfaceInfo},
 };
+
+pub fn get_required_physical_device_features() -> vk::PhysicalDeviceFeatures {
+    vk::PhysicalDeviceFeatures::default().shader_clip_distance(true)
+}
 
 fn has_required_features(instance: &Instance, physical_device: vk::PhysicalDevice) -> bool {
     let features = instance.get_physical_device_features(physical_device);
@@ -16,15 +20,20 @@ fn has_required_features(instance: &Instance, physical_device: vk::PhysicalDevic
     true
 }
 
-fn has_required_extensions(instance: &Instance, physical_device: vk::PhysicalDevice) -> bool {
+pub fn get_required_physical_device_extensions() -> Vec<&'static std::ffi::CStr> {
     let mut required_extensions = vec![ash::khr::swapchain::NAME];
+
     #[cfg(any(target_os = "macos", target_os = "ios"))]
     {
         required_extensions.push(ash::khr::portability_subset::NAME);
     }
 
+    required_extensions
+}
+
+fn has_required_extensions(instance: &Instance, physical_device: vk::PhysicalDevice) -> bool {
     let extensions = instance.get_physical_device_extension_properties(physical_device);
-    for required_ext_name_cstr in required_extensions.iter() {
+    for required_ext_name_cstr in get_required_physical_device_extensions().iter() {
         let required_ext_name = unsafe { CStr::from_ptr(required_ext_name_cstr.as_ptr()) };
         let found = extensions.iter().any(|ext| {
             let available_ext_name = unsafe { CStr::from_ptr(ext.extension_name.as_ptr()) };
@@ -38,12 +47,12 @@ fn has_required_extensions(instance: &Instance, physical_device: vk::PhysicalDev
 }
 
 #[derive(Debug)]
-pub struct QueueFamilyIndices {
-    pub graphics_queue_family_index: Option<u32>,
-    pub compute_queue_family_index: Option<u32>,
-    pub transfer_queue_family_index: Option<u32>,
-    pub sparse_binding_queue_family_index: Option<u32>,
-    pub present_queue_family_index: Option<u32>,
+struct QueueFamilyIndices {
+    graphics_queue_family_index: Option<u32>,
+    compute_queue_family_index: Option<u32>,
+    transfer_queue_family_index: Option<u32>,
+    sparse_binding_queue_family_index: Option<u32>,
+    present_queue_family_index: Option<u32>,
 }
 
 fn find_queue_family_indices(
@@ -158,12 +167,14 @@ fn find_queue_family_indices(
 }
 
 #[derive(Debug)]
-pub struct PhysicalDeviceCandidate {
-    pub device: vk::PhysicalDevice,
-    pub indices: QueueFamilyIndices,
-    pub score: u32,
+struct PhysicalDeviceCandidate {
+    physical_device: vk::PhysicalDevice,
+    queue_family_indices: QueueFamilyIndices,
+    surface_info: SurfaceInfo,
+    score: u32,
 }
 
+// 점수를 기반으로 가장 좋은 물리 디바이스를 선택하는 함수
 fn pick_best_physical_device(
     instance: &Instance,
     surface: &Surface,
@@ -174,7 +185,8 @@ fn pick_best_physical_device(
 
     for device in devices {
         // 필수 조건: 필수 기능과 확장이 지원되어야 함
-        if !has_required_features(instance, device) || !has_required_extensions(instance, device) {
+        if !has_required_features(&instance, device) || !has_required_extensions(&instance, device)
+        {
             continue;
         }
 
@@ -223,8 +235,9 @@ fn pick_best_physical_device(
         }
 
         let candidate = PhysicalDeviceCandidate {
-            device,
-            indices,
+            physical_device: device,
+            queue_family_indices: indices,
+            surface_info,
             score,
         };
 
@@ -250,24 +263,62 @@ pub enum PhysicalDeviceInitializationError {
 }
 
 pub struct PhysicalDevice {
+    instance: Arc<Instance>,
     handle: vk::PhysicalDevice,
+    queue_family_indices: QueueFamilyIndices,
+    surface_info: SurfaceInfo,
 }
 
 impl PhysicalDevice {
     pub fn new(
-        instance: &Instance,
+        instance: Arc<Instance>,
         surface: &Surface,
     ) -> Result<Self, PhysicalDeviceInitializationError> {
-        let best_candidate = pick_best_physical_device(instance, surface)?;
+        let best_candidate = pick_best_physical_device(&instance, surface)?;
 
-        log::debug!("Best physical device: {:?}", best_candidate);
+        log::debug!("Best physical device: {:#?}", best_candidate);
 
         if let Some(candidate) = best_candidate {
             Ok(Self {
-                handle: candidate.device,
+                instance,
+                handle: candidate.physical_device,
+                queue_family_indices: candidate.queue_family_indices,
+                surface_info: candidate.surface_info,
             })
         } else {
             Err(PhysicalDeviceInitializationError::NoCompatiblePhysicalDevice)
         }
+    }
+
+    pub fn get_queue_infos(&self) -> Vec<vk::DeviceQueueCreateInfo> {
+        let mut unique_indices = HashSet::new();
+        let mut queue_infos = Vec::new();
+        let queue_priority = &[1.0f32];
+
+        let all_indices = [
+            self.queue_family_indices.graphics_queue_family_index,
+            self.queue_family_indices.compute_queue_family_index,
+            self.queue_family_indices.transfer_queue_family_index,
+            self.queue_family_indices.present_queue_family_index,
+        ];
+
+        for index_opt in all_indices.iter().copied().flatten() {
+            if unique_indices.insert(index_opt) {
+                queue_infos.push(
+                    vk::DeviceQueueCreateInfo::default()
+                        .queue_family_index(index_opt)
+                        .queue_priorities(queue_priority),
+                );
+            }
+        }
+
+        queue_infos
+    }
+
+    pub fn create_device(
+        &self,
+        info: vk::DeviceCreateInfo,
+    ) -> Result<ash::Device, DeviceCreationError> {
+        self.instance.create_device(self.handle, info)
     }
 }
