@@ -1,10 +1,13 @@
 use std::{ffi::CString, sync::Arc};
 
-use ash::{ext::debug_utils, vk};
+use ash::{ext::debug_utils, khr, vk};
 use thiserror::Error;
-use winit::{raw_window_handle::HasDisplayHandle, window::Window};
+use winit::{
+    raw_window_handle::{HandleError, HasDisplayHandle, HasWindowHandle},
+    window::Window,
+};
 
-use crate::debug::{DebugMessenger, DebugMessengerError, get_debug_messenger_push_next};
+use crate::debug::{DebugMessenger, DebugMessengerCreationError, get_debug_messenger_push_next};
 
 pub struct Instance {
     window: Arc<Window>,
@@ -15,25 +18,35 @@ pub struct Instance {
 }
 
 #[derive(Debug, Error)]
-pub enum InstanceError {
-    #[error("Failed to load entry: {0}")]
-    EntryLoadError(#[from] ash::LoadingError),
+pub enum InstanceInitializationError {
+    #[error("Failed to load Vulkan entry: {0}")]
+    LoadEntry(#[from] ash::LoadingError),
 
-    #[error("Failed to enumerate required extensions: {0}")]
-    ExtensionEnumerationError(String),
+    #[error("Failed to get required extensions: {0}")]
+    EnumerateExtensions(String),
 
-    #[error("Failed to create handle: {0}")]
-    HandleCreationError(String),
+    #[error("Failed to create Vulkan instance: {0}")]
+    CreateHandle(String),
 
     #[error("Failed to create debug messenger: {0}")]
-    DebugMessengerCreationError(#[from] DebugMessengerError),
-
-    #[error("Failed to enumerate physical devices: {0}")]
-    EnumeratePhysicalDevicesError(String),
+    CreateDebugMessenger(#[from] DebugMessengerCreationError),
 }
 
+#[derive(Debug, Error)]
+pub enum SurfaceCreationError {
+    #[error("Failed to get window handle: {0}")]
+    GetWindowHandle(#[from] HandleError),
+
+    #[error("Failed to create surface: {0}")]
+    CreateSurface(String),
+}
+
+#[derive(Debug, Error)]
+#[error("Failed to enumerate physical devices: {0}")]
+pub struct PhysicalDevicesEnumerationError(pub String);
+
 impl Instance {
-    pub fn new(window: Arc<Window>) -> Result<Self, InstanceError> {
+    pub fn new(window: Arc<Window>) -> Result<Self, InstanceInitializationError> {
         let entry = unsafe { ash::Entry::load()? };
         let debug_messenger_push_next = get_debug_messenger_push_next();
         let handle = Self::create_handle(window.clone(), &entry, debug_messenger_push_next)?;
@@ -42,11 +55,10 @@ impl Instance {
             window,
             entry,
             handle,
+
             debug_messenger: None,
         };
-
         instance.debug_messenger = Some(DebugMessenger::new(&instance, debug_messenger_push_next)?);
-
         Ok(instance)
     }
 
@@ -54,13 +66,13 @@ impl Instance {
         window: Arc<Window>,
         entry: &ash::Entry,
         mut debug_messenger_push_next: vk::DebugUtilsMessengerCreateInfoEXT,
-    ) -> Result<ash::Instance, InstanceError> {
+    ) -> Result<ash::Instance, InstanceInitializationError> {
         let app_info = vk::ApplicationInfo::default().api_version(vk::API_VERSION_1_3);
         let enabled_layers = vec![CString::new("VK_LAYER_KHRONOS_validation").unwrap()];
 
         let mut enabled_extensions =
             ash_window::enumerate_required_extensions(window.display_handle().unwrap().as_raw())
-                .map_err(|e| InstanceError::ExtensionEnumerationError(e.to_string()))?
+                .map_err(|e| InstanceInitializationError::EnumerateExtensions(e.to_string()))?
                 .to_vec();
         enabled_extensions.push(debug_utils::NAME.as_ptr());
 
@@ -91,7 +103,7 @@ impl Instance {
         unsafe {
             entry
                 .create_instance(&handle_info, None)
-                .map_err(|e| InstanceError::HandleCreationError(e.to_string()))
+                .map_err(|e| InstanceInitializationError::CreateHandle(e.to_string()))
         }
     }
 
@@ -99,12 +111,43 @@ impl Instance {
         debug_utils::Instance::new(&self.entry, &self.handle)
     }
 
-    pub fn enumerate_physical_devices(&self) -> Result<Vec<vk::PhysicalDevice>, InstanceError> {
+    pub fn create_surface_loader(&self) -> khr::surface::Instance {
+        khr::surface::Instance::new(&self.entry, &self.handle)
+    }
+
+    pub fn create_surface(&self) -> Result<vk::SurfaceKHR, SurfaceCreationError> {
+        let display_handle = self.window.display_handle()?;
+        let window_handle = self.window.window_handle()?;
+
+        let surface = unsafe {
+            ash_window::create_surface(
+                &self.entry,
+                &self.handle,
+                display_handle.as_raw(),
+                window_handle.as_raw(),
+                None,
+            )
+            .map_err(|e| SurfaceCreationError::CreateSurface(e.to_string()))?
+        };
+
+        Ok(surface)
+    }
+
+    pub fn get_physical_devices(
+        &self,
+    ) -> Result<Vec<vk::PhysicalDevice>, PhysicalDevicesEnumerationError> {
         unsafe {
             self.handle
                 .enumerate_physical_devices()
-                .map_err(|e| InstanceError::EnumeratePhysicalDevicesError(e.to_string()))
+                .map_err(|e| PhysicalDevicesEnumerationError(e.to_string()))
         }
+    }
+
+    pub fn get_physical_device_properties(
+        &self,
+        physical_device: vk::PhysicalDevice,
+    ) -> vk::PhysicalDeviceProperties {
+        unsafe { self.handle.get_physical_device_properties(physical_device) }
     }
 
     pub fn get_physical_device_features(
@@ -124,14 +167,26 @@ impl Instance {
                 .unwrap_or_else(|_| Vec::new())
         }
     }
+
+    pub fn get_physical_device_queue_family_properties(
+        &self,
+        physical_device: vk::PhysicalDevice,
+    ) -> Vec<vk::QueueFamilyProperties> {
+        unsafe {
+            self.handle
+                .get_physical_device_queue_family_properties(physical_device)
+        }
+    }
 }
 
 impl Drop for Instance {
     fn drop(&mut self) {
-        unsafe {
-            // 인스턴스 소멸 전에 debug messenger 소멸
-            self.debug_messenger = None;
+        // 인스턴스 소멸 전에 debug messenger 소멸
+        self.debug_messenger = None;
 
+        log::debug!("Dropping instance");
+
+        unsafe {
             self.handle.destroy_instance(None);
         }
     }

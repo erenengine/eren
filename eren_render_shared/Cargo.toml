@@ -4,7 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+env_logger = "0.11.8"
 eren_window = { path = "../eren_window" }
+log = "0.4.27"
 thiserror = "2.0.12"
 wgpu = { version = "25.0.2", features = ["webgl"] }
 winit = "0.30.11"

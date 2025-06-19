@@ -1,41 +1,46 @@
 use std::sync::Arc;
 
-use eren_render_vulkan_shared::{instance::Instance, physical_device::PhysicalDevice};
+use eren_render_vulkan_shared::{
+    instance::Instance, physical_device::PhysicalDevice, surface::Surface,
+};
 use eren_window::window::{WindowConfig, WindowEventHandler, WindowLifecycle};
 use winit::window::Window;
 
 struct TestWindowEventHandler {
     window: Arc<Window>,
-    instance: Instance,
-    physical_device: PhysicalDevice,
+    instance: Option<Instance>,
+    surface: Option<Surface>,
+    physical_device: Option<PhysicalDevice>,
 }
 
 impl WindowEventHandler for TestWindowEventHandler {
     async fn new(window: Arc<Window>) -> Self {
-        println!("Window created");
+        log::debug!("Window created");
 
         let instance = Instance::new(window.clone()).unwrap();
-        let physical_device = PhysicalDevice::new(&instance).unwrap();
+        let surface = Surface::new(&instance).unwrap();
+        let physical_device = PhysicalDevice::new(&instance, &surface).unwrap();
 
-        println!("Physical device created");
+        log::debug!("Physical device created");
 
         Self {
             window,
-            instance,
-            physical_device,
+            instance: Some(instance),
+            surface: Some(surface),
+            physical_device: Some(physical_device),
         }
     }
 
     fn on_resized(&mut self, width: u32, height: u32) {
-        println!("Window resized: {}x{}", width, height);
+        log::debug!("Window resized: {}x{}", width, height);
     }
 
     fn on_scale_factor_changed(&mut self, scale_factor: f64) {
-        println!("Scale factor changed: {}", scale_factor);
+        log::debug!("Scale factor changed: {}", scale_factor);
     }
 
     fn on_redraw_requested(&mut self) {
-        //println!("Redraw requested");
+        //log::debug!("Redraw requested");
 
         self.window.request_redraw();
     }
@@ -43,11 +48,18 @@ impl WindowEventHandler for TestWindowEventHandler {
 
 impl Drop for TestWindowEventHandler {
     fn drop(&mut self) {
-        println!("Window lost");
+        log::debug!("Window lost");
+
+        // Drop in reverse order
+        self.physical_device = None;
+        self.surface = None;
+        self.instance = None;
     }
 }
 
 pub fn main() {
+    env_logger::init();
+
     match WindowLifecycle::<TestWindowEventHandler>::new(WindowConfig {
         width: 800,
         height: 600,
@@ -58,7 +70,7 @@ pub fn main() {
     {
         Ok(_) => {}
         Err(e) => {
-            eprintln!("Failed to start event loop: {}", e);
+            log::error!("Failed to start event loop: {}", e);
         }
     }
 }

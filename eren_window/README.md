@@ -1,5 +1,5 @@
 ```
-cargo run --example test_window
+RUST_LOG=debug cargo run --example test_window
 ```
 
 ```

@@ -4,25 +4,18 @@ use eren_render_shared::instance::Instance;
 use eren_window::window::{WindowConfig, WindowEventHandler, WindowLifecycle};
 use winit::window::Window;
 
-#[cfg(target_arch = "wasm32")]
-pub fn show_error_popup_and_panic<E: std::fmt::Display>(error: E, context: &str) -> ! {
-    web_sys::window()
-        .unwrap()
-        .alert_with_message(&format!("{}: {}", context, error))
-        .unwrap();
-
-    panic!("{}: {}", context, error);
-}
-
-fn console_log(message: &str) {
+pub fn init_logger() {
     #[cfg(target_arch = "wasm32")]
     {
-        web_sys::console::log_1(&message.into());
+        use log::Level;
+
+        console_error_panic_hook::set_once();
+        console_log::init_with_level(Level::Debug).expect("Failed to init console_log");
     }
 
     #[cfg(not(target_arch = "wasm32"))]
     {
-        println!("{}", message);
+        env_logger::init();
     }
 }
 
@@ -33,25 +26,25 @@ struct TestWindowEventHandler {
 
 impl WindowEventHandler for TestWindowEventHandler {
     async fn new(window: Arc<Window>) -> Self {
-        console_log("Window created");
+        log::debug!("Window created");
 
         let instance = Instance::new(window.clone()).await;
 
-        console_log("Instance created");
+        log::debug!("Instance created");
 
         Self { window, instance }
     }
 
     fn on_resized(&mut self, width: u32, height: u32) {
-        console_log(&format!("Window resized: {}x{}", width, height));
+        log::debug!("Window resized: {}x{}", width, height);
     }
 
     fn on_scale_factor_changed(&mut self, scale_factor: f64) {
-        console_log(&format!("Scale factor changed: {}", scale_factor));
+        log::debug!("Scale factor changed: {}", scale_factor);
     }
 
     fn on_redraw_requested(&mut self) {
-        //console_log("Redraw requested");
+        // log::debug!("Redraw requested");
 
         self.window.request_redraw();
     }
@@ -59,11 +52,13 @@ impl WindowEventHandler for TestWindowEventHandler {
 
 impl Drop for TestWindowEventHandler {
     fn drop(&mut self) {
-        console_log("Window lost");
+        log::debug!("Window lost");
     }
 }
 
 fn run() {
+    init_logger();
+
     match WindowLifecycle::<TestWindowEventHandler>::new(WindowConfig {
         width: 800,
         height: 600,
@@ -78,24 +73,13 @@ fn run() {
     .start_event_loop()
     {
         Ok(_) => {}
-        Err(e) => {
-            #[cfg(target_arch = "wasm32")]
-            {
-                show_error_popup_and_panic(e, "Failed to start event loop");
-            }
-
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                eprintln!("Failed to start event loop: {}", e);
-            }
-        }
+        Err(e) => log::error!("Failed to start event loop: {}", e),
     }
 }
 
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen::prelude::wasm_bindgen(start)]
 fn start() {
-    console_error_panic_hook::set_once();
     run();
 }
 

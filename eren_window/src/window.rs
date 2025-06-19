@@ -28,7 +28,7 @@ pub trait WindowEventHandler {
 
 #[derive(Debug, Error)]
 pub enum WindowLifecycleError {
-    #[error("Event loop error: {0}")]
+    #[error("Window lifecycle error: {0}")]
     EventLoopError(#[from] EventLoopError),
 }
 

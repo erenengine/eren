@@ -1,3 +1,8 @@
+```
+RUST_LOG=debug cargo run --example test_instance
+RUST_LOG=debug cargo run --example test_physical_device
+```
+
 ## Vulkan SDK 설정(맥)
 ```
 export VULKAN_SDK=$HOME/VulkanSDK/1.4.313.1/macOS

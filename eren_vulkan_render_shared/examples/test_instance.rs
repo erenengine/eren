@@ -11,25 +11,25 @@ struct TestWindowEventHandler {
 
 impl WindowEventHandler for TestWindowEventHandler {
     async fn new(window: Arc<Window>) -> Self {
-        println!("Window created");
+        log::debug!("Window created");
 
         let instance = Instance::new(window.clone()).unwrap();
 
-        println!("Instance created");
+        log::debug!("Instance created");
 
         Self { window, instance }
     }
 
     fn on_resized(&mut self, width: u32, height: u32) {
-        println!("Window resized: {}x{}", width, height);
+        log::debug!("Window resized: {}x{}", width, height);
     }
 
     fn on_scale_factor_changed(&mut self, scale_factor: f64) {
-        println!("Scale factor changed: {}", scale_factor);
+        log::debug!("Scale factor changed: {}", scale_factor);
     }
 
     fn on_redraw_requested(&mut self) {
-        //println!("Redraw requested");
+        //log::debug!("Redraw requested");
 
         self.window.request_redraw();
     }
@@ -37,11 +37,13 @@ impl WindowEventHandler for TestWindowEventHandler {
 
 impl Drop for TestWindowEventHandler {
     fn drop(&mut self) {
-        println!("Window lost");
+        log::debug!("Window lost");
     }
 }
 
 pub fn main() {
+    env_logger::init();
+
     match WindowLifecycle::<TestWindowEventHandler>::new(WindowConfig {
         width: 800,
         height: 600,
@@ -52,7 +54,7 @@ pub fn main() {
     {
         Ok(_) => {}
         Err(e) => {
-            eprintln!("Failed to start event loop: {}", e);
+            log::error!("Failed to start event loop: {}", e);
         }
     }
 }

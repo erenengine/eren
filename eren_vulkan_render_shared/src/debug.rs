@@ -28,14 +28,8 @@ unsafe extern "system" fn vulkan_debug_messenger_callback(
     let message = unsafe { std::ffi::CStr::from_ptr((*p_callback_data).p_message) };
     let severity = format!("{:?}", message_severity).to_lowercase();
     let ty = format!("{:?}", message_type).to_lowercase();
-    println!("[Debug][{}][{}] {:?}", severity, ty, message);
+    log::debug!("[Debug][{}][{}] {:?}", severity, ty, message);
     vk::FALSE
-}
-
-#[derive(Debug, Error)]
-pub enum DebugMessengerError {
-    #[error("Failed to create debug utils messenger: {0}")]
-    DebugUtilsMessengerCreationError(String),
 }
 
 pub struct DebugMessenger {
@@ -43,16 +37,20 @@ pub struct DebugMessenger {
     handle: vk::DebugUtilsMessengerEXT,
 }
 
+#[derive(Debug, Error)]
+#[error("Failed to create debug utils messenger: {0}")]
+pub struct DebugMessengerCreationError(pub String);
+
 impl DebugMessenger {
     pub fn new(
         instance: &Instance,
         push_next: vk::DebugUtilsMessengerCreateInfoEXT,
-    ) -> Result<Self, DebugMessengerError> {
+    ) -> Result<Self, DebugMessengerCreationError> {
         let debug_utils = instance.create_debug_utils();
         let handle = unsafe {
             debug_utils
                 .create_debug_utils_messenger(&push_next, None)
-                .map_err(|e| DebugMessengerError::DebugUtilsMessengerCreationError(e.to_string()))?
+                .map_err(|e| DebugMessengerCreationError(e.to_string()))?
         };
         Ok(Self {
             debug_utils,
@@ -63,8 +61,7 @@ impl DebugMessenger {
 
 impl Drop for DebugMessenger {
     fn drop(&mut self) {
-        println!("Dropping debug messenger");
-
+        log::debug!("Dropping debug messenger");
         unsafe {
             self.debug_utils
                 .destroy_debug_utils_messenger(self.handle, None);
