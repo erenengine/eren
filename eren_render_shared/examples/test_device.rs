@@ -21,10 +21,10 @@ pub fn init_logger() {
 
 struct TestWindowEventHandler<'a> {
     window: Arc<Window>,
-    instance: Instance,
-    surface: Surface<'a>,
-    adapter: Adapter,
-    device: Device,
+    _instance: Instance,
+    _surface: Surface<'a>,
+    _adapter: Adapter,
+    _device: Device,
 }
 
 impl<'a> WindowEventHandler for TestWindowEventHandler<'a> {
@@ -40,10 +40,10 @@ impl<'a> WindowEventHandler for TestWindowEventHandler<'a> {
 
         Self {
             window,
-            instance,
-            surface,
-            adapter,
-            device,
+            _instance: instance,
+            _surface: surface,
+            _adapter: adapter,
+            _device: device,
         }
     }
 

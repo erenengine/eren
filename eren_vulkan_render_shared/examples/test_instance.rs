@@ -6,7 +6,7 @@ use winit::window::Window;
 
 struct TestWindowEventHandler {
     window: Arc<Window>,
-    instance: Instance,
+    _instance: Instance,
 }
 
 impl WindowEventHandler for TestWindowEventHandler {
@@ -17,7 +17,10 @@ impl WindowEventHandler for TestWindowEventHandler {
 
         log::debug!("Instance created");
 
-        Self { window, instance }
+        Self {
+            window,
+            _instance: instance,
+        }
     }
 
     fn on_resized(&mut self, width: u32, height: u32) {

@@ -1,12 +1,4 @@
-use thiserror::Error;
-
 use crate::{instance::Instance, surface::Surface};
-
-#[derive(Debug, Error)]
-pub enum AdapterError {
-    #[error("Failed to request adapter: {0}")]
-    RequestAdapterError(#[from] wgpu::RequestAdapterError),
-}
 
 pub struct Adapter {
     handle: wgpu::Adapter,
@@ -16,7 +8,7 @@ impl Adapter {
     pub async fn new<'window>(
         instance: &Instance,
         surface: &Surface<'window>,
-    ) -> Result<Self, AdapterError> {
+    ) -> Result<Self, wgpu::RequestAdapterError> {
         let compatible_surface = Some(surface.get_compatible_surface());
         let handle = instance.request_adapter(compatible_surface).await?;
         Ok(Self { handle })
