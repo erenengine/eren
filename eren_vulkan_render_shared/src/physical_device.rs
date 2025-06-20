@@ -9,14 +9,17 @@ use crate::{
 };
 
 pub fn get_required_physical_device_features() -> vk::PhysicalDeviceFeatures {
-    vk::PhysicalDeviceFeatures::default().shader_clip_distance(true)
+    //TODO: 추후 필요할 때 추가
+    //vk::PhysicalDeviceFeatures::default().shader_clip_distance(true)
+    vk::PhysicalDeviceFeatures::default()
 }
 
 fn has_required_features(instance: &Instance, physical_device: vk::PhysicalDevice) -> bool {
     let features = instance.get_physical_device_features(physical_device);
-    if features.shader_clip_distance != vk::TRUE {
+    //TODO: 추후 필요할 때 추가
+    /*if features.shader_clip_distance != vk::TRUE {
         return false;
-    }
+    }*/
     true
 }
 
@@ -182,6 +185,8 @@ fn pick_best_physical_device(
     let mut best_candidate: Option<PhysicalDeviceCandidate> = None;
 
     let devices = instance.get_physical_devices()?;
+
+    log::debug!("Available physical devices: {:#?}", devices);
 
     for device in devices {
         // 필수 조건: 필수 기능과 확장이 지원되어야 함

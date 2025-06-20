@@ -1,6 +1,7 @@
 ```
 RUST_LOG=debug cargo run --example test_instance
 RUST_LOG=debug cargo run --example test_physical_device
+RUST_LOG=debug cargo run --example test_device
 ```
 
 ## Vulkan SDK 설정(맥)
