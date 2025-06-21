@@ -13,7 +13,7 @@ pub struct Instance {
     window: Arc<Window>,
     entry: ash::Entry,
     handle: ash::Instance,
-
+    surface_loader: Arc<khr::surface::Instance>,
     debug_messenger: Option<DebugMessenger>,
 }
 
@@ -65,10 +65,13 @@ impl Instance {
             None,
         )?;
 
+        let surface_loader = Arc::new(khr::surface::Instance::new(&entry, &handle));
+
         let mut instance = Self {
             window,
             entry,
             handle,
+            surface_loader,
             debug_messenger: None,
         };
 
@@ -143,8 +146,8 @@ impl Instance {
         debug_utils::Instance::new(&self.entry, &self.handle)
     }
 
-    pub fn create_surface_loader(&self) -> khr::surface::Instance {
-        khr::surface::Instance::new(&self.entry, &self.handle)
+    pub fn get_surface_loader(&self) -> Arc<khr::surface::Instance> {
+        self.surface_loader.clone()
     }
 
     pub fn create_surface(&self) -> Result<vk::SurfaceKHR, SurfaceCreationError> {

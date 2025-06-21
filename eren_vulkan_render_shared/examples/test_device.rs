@@ -8,29 +8,30 @@ use winit::window::Window;
 
 struct TestWindowEventHandler {
     window: Arc<Window>,
-    instance: Option<Arc<Instance>>,
-    surface: Option<Surface>,
-    physical_device: Option<PhysicalDevice>,
-    device: Option<Device>,
+    _instance: Arc<Instance>,
+    _surface: Surface,
+    _physical_device: Arc<PhysicalDevice>,
+    _device: Device,
 }
 
 impl WindowEventHandler for TestWindowEventHandler {
     async fn new(window: Arc<Window>) -> Self {
         log::debug!("Window created");
 
-        let instance = Arc::new(Instance::new(window.clone()).unwrap());
-        let surface = Surface::new(instance.clone()).unwrap();
-        let physical_device = PhysicalDevice::new(instance.clone(), &surface).unwrap();
-        let device = Device::new(&physical_device).unwrap();
+        let mut raw_instance = Instance::new(window.clone()).unwrap();
+        let surface = Surface::new(&mut raw_instance).unwrap();
+        let instance = Arc::new(raw_instance);
+        let physical_device = Arc::new(PhysicalDevice::new(instance.clone(), &surface).unwrap());
+        let device = Device::new(physical_device.clone()).unwrap();
 
         log::debug!("Device created");
 
         Self {
             window,
-            instance: Some(instance),
-            surface: Some(surface),
-            physical_device: Some(physical_device),
-            device: Some(device),
+            _instance: instance,
+            _surface: surface,
+            _physical_device: physical_device,
+            _device: device,
         }
     }
 
@@ -52,12 +53,6 @@ impl WindowEventHandler for TestWindowEventHandler {
 impl Drop for TestWindowEventHandler {
     fn drop(&mut self) {
         log::debug!("Window lost");
-
-        // Drop in reverse order
-        self.device = None;
-        self.physical_device = None;
-        self.surface = None;
-        self.instance = None;
     }
 }
 

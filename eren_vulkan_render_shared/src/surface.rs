@@ -6,7 +6,7 @@ use thiserror::Error;
 use crate::instance::{Instance, SurfaceCreationError};
 
 pub struct Surface {
-    loader: khr::surface::Instance,
+    loader: Arc<khr::surface::Instance>,
     handle: vk::SurfaceKHR,
 }
 
@@ -36,9 +36,9 @@ impl SurfaceInfo {
 }
 
 impl Surface {
-    pub fn new(instance: Arc<Instance>) -> Result<Self, SurfaceCreationError> {
-        let loader = instance.create_surface_loader();
-        let handle = instance.create_surface()?;
+    pub fn new(raw_instance: &mut Instance) -> Result<Self, SurfaceCreationError> {
+        let loader = raw_instance.get_surface_loader();
+        let handle = raw_instance.create_surface()?;
 
         Ok(Self { loader, handle })
     }

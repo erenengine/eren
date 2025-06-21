@@ -8,26 +8,27 @@ use winit::window::Window;
 
 struct TestWindowEventHandler {
     window: Arc<Window>,
-    instance: Option<Arc<Instance>>,
-    surface: Option<Surface>,
-    physical_device: Option<PhysicalDevice>,
+    _instance: Arc<Instance>,
+    _surface: Surface,
+    _physical_device: PhysicalDevice,
 }
 
 impl WindowEventHandler for TestWindowEventHandler {
     async fn new(window: Arc<Window>) -> Self {
         log::debug!("Window created");
 
-        let instance = Arc::new(Instance::new(window.clone()).unwrap());
-        let surface = Surface::new(instance.clone()).unwrap();
+        let mut raw_instance = Instance::new(window.clone()).unwrap();
+        let surface = Surface::new(&mut raw_instance).unwrap();
+        let instance = Arc::new(raw_instance);
         let physical_device = PhysicalDevice::new(instance.clone(), &surface).unwrap();
 
         log::debug!("Physical device created");
 
         Self {
             window,
-            instance: Some(instance),
-            surface: Some(surface),
-            physical_device: Some(physical_device),
+            _instance: instance,
+            _surface: surface,
+            _physical_device: physical_device,
         }
     }
 
@@ -49,11 +50,6 @@ impl WindowEventHandler for TestWindowEventHandler {
 impl Drop for TestWindowEventHandler {
     fn drop(&mut self) {
         log::debug!("Window lost");
-
-        // Drop in reverse order
-        self.physical_device = None;
-        self.surface = None;
-        self.instance = None;
     }
 }
 

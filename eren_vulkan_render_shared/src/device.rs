@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use ash::vk;
 
 use crate::{
@@ -9,11 +11,12 @@ use crate::{
 };
 
 pub struct Device {
+    _physical_device: Arc<PhysicalDevice>,
     handle: ash::Device,
 }
 
 impl Device {
-    pub fn new(physical_device: &PhysicalDevice) -> Result<Self, DeviceCreationError> {
+    pub fn new(physical_device: Arc<PhysicalDevice>) -> Result<Self, DeviceCreationError> {
         let queue_infos = physical_device.get_queue_infos();
         let required_features = get_required_physical_device_features();
         let required_extensions = get_required_physical_device_extensions();
@@ -29,7 +32,10 @@ impl Device {
 
         let handle = physical_device.create_device(device_info)?;
 
-        Ok(Self { handle })
+        Ok(Self {
+            _physical_device: physical_device,
+            handle,
+        })
     }
 }
 
