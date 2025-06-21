@@ -52,32 +52,56 @@ pub struct DeviceCreationError(pub String);
 impl Instance {
     pub fn new(window: Arc<Window>) -> Result<Self, InstanceInitializationError> {
         let entry = unsafe { ash::Entry::load()? };
+
+        #[cfg(debug_assertions)]
         let debug_messenger_push_next = get_debug_messenger_push_next();
-        let handle = Self::create_handle(window.clone(), &entry, debug_messenger_push_next)?;
+
+        let handle = Self::create_handle(
+            window.clone(),
+            &entry,
+            #[cfg(debug_assertions)]
+            Some(debug_messenger_push_next),
+            #[cfg(not(debug_assertions))]
+            None,
+        )?;
 
         let mut instance = Self {
             window,
             entry,
             handle,
-
             debug_messenger: None,
         };
-        instance.debug_messenger = Some(DebugMessenger::new(&instance, debug_messenger_push_next)?);
+
+        #[cfg(debug_assertions)]
+        {
+            instance.debug_messenger =
+                Some(DebugMessenger::new(&instance, debug_messenger_push_next)?);
+        }
+
         Ok(instance)
     }
 
     fn create_handle(
         window: Arc<Window>,
         entry: &ash::Entry,
-        mut debug_messenger_push_next: vk::DebugUtilsMessengerCreateInfoEXT,
+        #[cfg(debug_assertions)] mut debug_messenger_push_next: Option<
+            vk::DebugUtilsMessengerCreateInfoEXT,
+        >,
+        #[cfg(not(debug_assertions))] _debug_messenger_push_next: Option<()>,
     ) -> Result<ash::Instance, InstanceInitializationError> {
         let app_info = vk::ApplicationInfo::default().api_version(vk::API_VERSION_1_3);
+
+        #[cfg(debug_assertions)]
         let enabled_layers = vec![CString::new("VK_LAYER_KHRONOS_validation").unwrap()];
+        #[cfg(not(debug_assertions))]
+        let enabled_layers = vec![];
 
         let mut enabled_extensions =
             ash_window::enumerate_required_extensions(window.display_handle().unwrap().as_raw())
                 .map_err(|e| InstanceInitializationError::EnumerateExtensions(e.to_string()))?
                 .to_vec();
+
+        #[cfg(debug_assertions)]
         enabled_extensions.push(debug_utils::NAME.as_ptr());
 
         let mut flags = vk::InstanceCreateFlags::empty();
@@ -97,12 +121,16 @@ impl Instance {
             .map(|s| s.as_ptr())
             .collect::<Vec<_>>();
 
-        let handle_info = vk::InstanceCreateInfo::default()
-            .push_next(&mut debug_messenger_push_next)
+        let mut handle_info = vk::InstanceCreateInfo::default()
             .application_info(&app_info)
             .enabled_layer_names(&enabled_layers_pointers)
             .enabled_extension_names(&enabled_extensions)
             .flags(flags);
+
+        #[cfg(debug_assertions)]
+        if let Some(ref mut push_next) = debug_messenger_push_next {
+            handle_info = handle_info.push_next(push_next);
+        }
 
         unsafe {
             entry
