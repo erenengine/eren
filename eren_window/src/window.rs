@@ -140,7 +140,9 @@ impl<E: WindowEventHandler> ApplicationHandler<E> for WindowLifecycle<E> {
         {
             // 웹 환경이 아니라면 pollster를 사용하여
             // future를 동기적으로 기다릴 수 있습니다
-            self.event_handler = Some(pollster::block_on(E::new(window)));
+            self.event_handler = Some(pollster::block_on(E::new(window.clone())));
+
+            window.request_redraw();
         }
 
         #[cfg(target_arch = "wasm32")]
@@ -148,8 +150,11 @@ impl<E: WindowEventHandler> ApplicationHandler<E> for WindowLifecycle<E> {
             // future를 비동기적으로 실행하고
             // proxy를 사용해 결과를 이벤트 루프로 보냅니다
             if let Some(proxy) = self.proxy.take() {
+                let cloned_window = window.clone();
                 wasm_bindgen_futures::spawn_local(async move {
-                    assert!(proxy.send_event(E::new(window).await).is_ok());
+                    let event_handler = E::new(cloned_window.clone()).await;
+                    //cloned_window.request_redraw();
+                    assert!(proxy.send_event(event_handler).is_ok());
                 });
             }
         }

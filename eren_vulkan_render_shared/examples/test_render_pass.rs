@@ -8,11 +8,9 @@ use winit::window::Window;
 
 mod test_render_pass {
     pub mod renderer;
-    pub mod resource_manager;
 }
 
 use crate::test_render_pass::renderer::TestRenderer;
-use crate::test_render_pass::resource_manager::TestResourceManager;
 
 struct TestWindowEventHandler {
     window: Arc<Window>,
@@ -20,7 +18,7 @@ struct TestWindowEventHandler {
     _surface: Surface,
     _physical_device: Arc<PhysicalDevice>,
     _device: Arc<Device>,
-    render_pass: TestRenderer,
+    renderer: TestRenderer,
 }
 
 impl WindowEventHandler for TestWindowEventHandler {
@@ -31,8 +29,9 @@ impl WindowEventHandler for TestWindowEventHandler {
         let surface = Surface::new(&instance).unwrap();
         let physical_device = Arc::new(PhysicalDevice::new(instance.clone(), &surface).unwrap());
         let device = Arc::new(Device::new(physical_device.clone()).unwrap());
+        let renderer: TestRenderer = TestRenderer::new(device.clone());
 
-        log::debug!("Device created");
+        log::debug!("Renderer created");
 
         Self {
             window,
@@ -40,7 +39,7 @@ impl WindowEventHandler for TestWindowEventHandler {
             _surface: surface,
             _physical_device: physical_device,
             _device: device.clone(),
-            render_pass: TestRenderer::new(device),
+            renderer,
         }
     }
 
@@ -53,7 +52,9 @@ impl WindowEventHandler for TestWindowEventHandler {
     }
 
     fn on_redraw_requested(&mut self) {
-        //log::debug!("Redraw requested");
+        log::debug!("Redraw requested");
+
+        self.renderer.render();
 
         self.window.request_redraw();
     }

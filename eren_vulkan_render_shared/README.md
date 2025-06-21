@@ -11,4 +11,5 @@ export VK_LAYER_PATH=$VULKAN_SDK/share/vulkan/explicit_layer.d
 RUST_LOG=debug cargo run --example test_instance
 RUST_LOG=debug cargo run --example test_physical_device
 RUST_LOG=debug cargo run --example test_device
+RUST_LOG=debug cargo run --example test_render_pass
 ```
