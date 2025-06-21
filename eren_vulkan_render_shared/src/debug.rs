@@ -7,9 +7,9 @@ pub fn get_debug_messenger_push_next<'a>() -> vk::DebugUtilsMessengerCreateInfoE
     vk::DebugUtilsMessengerCreateInfoEXT::default()
         .message_severity(
             vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
-            | vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE
-            //| vk::DebugUtilsMessageSeverityFlagsEXT::INFO
-            | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR,
+                | vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE
+                | vk::DebugUtilsMessageSeverityFlagsEXT::INFO
+                | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR,
         )
         .message_type(
             vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
@@ -25,10 +25,30 @@ unsafe extern "system" fn vulkan_debug_messenger_callback(
     p_callback_data: *const vk::DebugUtilsMessengerCallbackDataEXT,
     _p_user_data: *mut std::ffi::c_void,
 ) -> vk::Bool32 {
-    let message = unsafe { std::ffi::CStr::from_ptr((*p_callback_data).p_message) };
-    let severity = format!("{:#?}", message_severity).to_lowercase();
-    let ty = format!("{:#?}", message_type).to_lowercase();
-    log::debug!("[Debug][{}][{}] {:#?}", severity, ty, message);
+    let message = if !(unsafe { *p_callback_data }).p_message.is_null() {
+        unsafe { std::ffi::CStr::from_ptr((*p_callback_data).p_message).to_string_lossy() }
+    } else {
+        std::borrow::Cow::Borrowed("<<null message>>")
+    };
+
+    match message_severity {
+        vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE => {
+            log::debug!("[{:#?}] {}", message_type, message);
+        }
+        vk::DebugUtilsMessageSeverityFlagsEXT::INFO => {
+            log::info!("[{:#?}] {}", message_type, message);
+        }
+        vk::DebugUtilsMessageSeverityFlagsEXT::WARNING => {
+            log::warn!("[{:#?}] {}", message_type, message);
+        }
+        vk::DebugUtilsMessageSeverityFlagsEXT::ERROR => {
+            log::error!("[{:#?}] {}", message_type, message);
+        }
+        _ => {
+            log::debug!("[{:#?}] {}", message_type, message);
+        }
+    }
+
     vk::FALSE
 }
 

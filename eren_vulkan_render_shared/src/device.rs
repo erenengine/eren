@@ -11,6 +11,7 @@ use crate::{
 };
 
 pub struct Device {
+    // 소멸 순서를 맞추기 위해 Arc로 유지 (논리 디바이스가 물리 디바이스보다 먼저 소멸)
     _physical_device: Arc<PhysicalDevice>,
     handle: ash::Device,
 }
