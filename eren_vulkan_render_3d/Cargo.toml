@@ -4,5 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+eren_vulkan_render_shared = { path = "../eren_vulkan_render_shared" }
 eren_render_view_3d = { path = "../eren_render_view_3d" }
 ash = "0.38.0"

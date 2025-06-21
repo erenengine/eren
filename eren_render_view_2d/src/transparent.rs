@@ -1,10 +1,8 @@
-use glam::{Affine2, Vec4};
-
 pub struct TransparentInstance {
     pub material_id: u32,
     pub mesh_id: u32,
-    pub transform: Affine2,
-    pub color: Vec4,
+    pub transform: [[f32; 3]; 2], // 2x3 행렬
+    pub color: [f32; 4],
     pub z: f32, // 깊이 정렬용
 }
 

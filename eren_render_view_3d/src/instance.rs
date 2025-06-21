@@ -1,6 +1,4 @@
-use glam::{Mat4, Vec4};
-
 pub struct Instance {
-    transform: Mat4,
-    color: Vec4,
+    pub transform: [[f32; 4]; 4],
+    pub color: [f32; 4],
 }

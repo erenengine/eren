@@ -1,6 +1,4 @@
-use glam::{Affine2, Vec4};
-
 pub struct Instance {
-    transform: Affine2,
-    color: Vec4,
+    pub transform: [[f32; 3]; 2], // 2x3 행렬
+    pub color: [f32; 4],
 }

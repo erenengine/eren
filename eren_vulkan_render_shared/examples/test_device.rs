@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use eren_render_vulkan_shared::{
+use eren_vulkan_render_shared::{
     device::Device, instance::Instance, physical_device::PhysicalDevice, surface::Surface,
 };
 use eren_window::window::{WindowConfig, WindowEventHandler, WindowLifecycle};

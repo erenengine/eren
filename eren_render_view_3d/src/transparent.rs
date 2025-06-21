@@ -1,12 +1,12 @@
 use std::cmp::Ordering;
 
-use glam::{Mat4, Vec3, Vec4};
+use glam::Vec3;
 
 pub struct TransparentInstance {
     pub material_id: u32,
     pub mesh_id: u32,
-    pub transform: Mat4,
-    pub color: Vec4,
+    pub transform: [[f32; 4]; 4],
+    pub color: [f32; 4],
     pub world_position: Vec3, // 중심 좌표
 }
 

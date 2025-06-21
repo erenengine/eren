@@ -1,11 +1,12 @@
 use glam::{Mat4, Vec2, Vec3};
 
 pub struct Camera {
-    pub position: Vec2,
-    pub zoom: f32,
-    pub rotation: f32,     // in radians
-    pub screen_size: Vec2, // in pixels or world units
-    pub view_proj_matrix: Mat4,
+    position: Vec2,
+    zoom: f32,
+    rotation: f32,     // in radians
+    screen_size: Vec2, // in pixels or world units
+
+    pub view_proj_matrix: [[f32; 4]; 4],
 }
 
 impl Camera {
@@ -15,7 +16,7 @@ impl Camera {
             zoom,
             rotation,
             screen_size,
-            view_proj_matrix: Mat4::IDENTITY,
+            view_proj_matrix: Mat4::IDENTITY.to_cols_array_2d(),
         };
         cam.update();
         cam
@@ -30,6 +31,6 @@ impl Camera {
         let view = Mat4::from_translation(Vec3::new(-self.position.x, -self.position.y, 0.0))
             * Mat4::from_rotation_z(-self.rotation);
 
-        self.view_proj_matrix = proj * view;
+        self.view_proj_matrix = (proj * view).to_cols_array_2d();
     }
 }
