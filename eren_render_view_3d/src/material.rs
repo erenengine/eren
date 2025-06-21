@@ -1,4 +1,4 @@
-use crate::render_view::mesh::MeshGroup;
+use crate::mesh::MeshGroup;
 
 pub struct MaterialGroup {
     material_id: u32,

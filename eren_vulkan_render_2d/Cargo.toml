@@ -1,7 +1,8 @@
 [package]
-name = "eren_render_vulkan_3d"
+name = "eren_render_vulkan_2d"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+eren_render_view_2d = { path = "../eren_render_view_2d" }
 ash = "0.38.0"

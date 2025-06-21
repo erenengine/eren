@@ -1,4 +1,4 @@
-use crate::render_view::instance::Instance;
+use crate::instance::Instance;
 
 pub struct MeshGroup {
     mesh_id: u32,

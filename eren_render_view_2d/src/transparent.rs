@@ -1,6 +1,4 @@
-use std::cmp::Ordering;
-
-use glam::{Affine2, Vec3, Vec4};
+use glam::{Affine2, Vec4};
 
 pub struct TransparentInstance {
     pub material_id: u32,
