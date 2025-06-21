@@ -11,3 +11,6 @@ winit = "0.30.11"
 ash-window = "0.13.0"
 log = "0.4.27"
 env_logger = "0.11.8"
+
+[dev-dependencies]
+glam = "0.30.4"
