@@ -11,7 +11,7 @@ use crate::{
 };
 
 pub struct Device {
-    // 소멸 순서를 맞추기 위해 Arc로 유지 (논리 디바이스가 물리 디바이스보다 먼저 소멸)
+    // 소멸 순서를 맞추기 위해 보유 (논리 디바이스가 물리 디바이스보다 먼저 소멸해야 함)
     _physical_device: Arc<PhysicalDevice>,
 
     handle: ash::Device,
@@ -79,7 +79,6 @@ impl Device {
 impl Drop for Device {
     fn drop(&mut self) {
         log::debug!("Dropping device");
-
         unsafe {
             self.handle.destroy_device(None);
         }

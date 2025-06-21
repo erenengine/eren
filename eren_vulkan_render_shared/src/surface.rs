@@ -36,10 +36,9 @@ impl SurfaceInfo {
 }
 
 impl Surface {
-    pub fn new(raw_instance: &mut Instance) -> Result<Self, SurfaceCreationError> {
-        let loader = raw_instance.get_surface_loader();
-        let handle = raw_instance.create_surface()?;
-
+    pub fn new(instance: &Instance) -> Result<Self, SurfaceCreationError> {
+        let loader = instance.get_surface_loader();
+        let handle = instance.create_surface()?;
         Ok(Self { loader, handle })
     }
 

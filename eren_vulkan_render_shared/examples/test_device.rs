@@ -18,9 +18,8 @@ impl WindowEventHandler for TestWindowEventHandler {
     async fn new(window: Arc<Window>) -> Self {
         log::debug!("Window created");
 
-        let mut raw_instance = Instance::new(window.clone()).unwrap();
-        let surface = Surface::new(&mut raw_instance).unwrap();
-        let instance = Arc::new(raw_instance);
+        let instance = Arc::new(Instance::new(window.clone()).unwrap());
+        let surface = Surface::new(&instance).unwrap();
         let physical_device = Arc::new(PhysicalDevice::new(instance.clone(), &surface).unwrap());
         let device = Device::new(physical_device.clone()).unwrap();
 
