@@ -24,10 +24,11 @@ fn has_required_features(instance: &Instance, physical_device: vk::PhysicalDevic
 }
 
 pub fn get_required_physical_device_extensions() -> Vec<&'static std::ffi::CStr> {
-    let mut required_extensions = vec![ash::khr::swapchain::NAME];
+    let mut required_extensions = vec![ash::khr::swapchain::NAME]; // 화면 출력을 위해 스왑체인 확장이 반드시 필요
 
     #[cfg(any(target_os = "macos", target_os = "ios"))]
     {
+        // MoltenVK을 사용하므로 완전한 Vulkan 구현이 불가능한 플랫폼에서도 Vulkan을 지원할 수 있도록 해주는 확장이 반드시 필요
         required_extensions.push(ash::khr::portability_subset::NAME);
     }
 
@@ -50,12 +51,12 @@ fn has_required_extensions(instance: &Instance, physical_device: vk::PhysicalDev
 }
 
 #[derive(Debug)]
-struct QueueFamilyIndices {
-    graphics_queue_family_index: Option<u32>,
-    compute_queue_family_index: Option<u32>,
-    transfer_queue_family_index: Option<u32>,
-    sparse_binding_queue_family_index: Option<u32>,
-    present_queue_family_index: Option<u32>,
+pub struct QueueFamilyIndices {
+    pub graphics_queue_family_index: Option<u32>,
+    pub compute_queue_family_index: Option<u32>,
+    pub transfer_queue_family_index: Option<u32>,
+    pub sparse_binding_queue_family_index: Option<u32>,
+    pub present_queue_family_index: Option<u32>,
 }
 
 fn find_queue_family_indices(
@@ -270,7 +271,7 @@ pub enum PhysicalDeviceInitializationError {
 pub struct PhysicalDevice {
     instance: Arc<Instance>,
     handle: vk::PhysicalDevice,
-    queue_family_indices: QueueFamilyIndices,
+    pub queue_family_indices: QueueFamilyIndices,
     surface_info: SurfaceInfo,
 }
 
@@ -298,7 +299,7 @@ impl PhysicalDevice {
     pub fn get_queue_infos(&self) -> Vec<vk::DeviceQueueCreateInfo> {
         let mut unique_indices = HashSet::new();
         let mut queue_infos = Vec::new();
-        let queue_priority = &[1.0f32];
+        let queue_priority = &[1.0f32]; // 서로 다른 queue family 간에는 우선순위가 의미 없음
 
         let all_indices = [
             self.queue_family_indices.graphics_queue_family_index,

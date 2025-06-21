@@ -13,7 +13,13 @@ use crate::{
 pub struct Device {
     // 소멸 순서를 맞추기 위해 Arc로 유지 (논리 디바이스가 물리 디바이스보다 먼저 소멸)
     _physical_device: Arc<PhysicalDevice>,
+
     handle: ash::Device,
+    graphics_queue: Option<vk::Queue>,
+    compute_queue: Option<vk::Queue>,
+    transfer_queue: Option<vk::Queue>,
+    sparse_binding_queue: Option<vk::Queue>,
+    present_queue: Option<vk::Queue>,
 }
 
 impl Device {
@@ -33,9 +39,39 @@ impl Device {
 
         let handle = physical_device.create_device(device_info)?;
 
+        let graphics_queue = physical_device
+            .queue_family_indices
+            .graphics_queue_family_index
+            .map(|index| unsafe { handle.get_device_queue(index, 0) });
+
+        let compute_queue = physical_device
+            .queue_family_indices
+            .compute_queue_family_index
+            .map(|index| unsafe { handle.get_device_queue(index, 0) });
+
+        let transfer_queue = physical_device
+            .queue_family_indices
+            .transfer_queue_family_index
+            .map(|index| unsafe { handle.get_device_queue(index, 0) });
+
+        let sparse_binding_queue = physical_device
+            .queue_family_indices
+            .sparse_binding_queue_family_index
+            .map(|index| unsafe { handle.get_device_queue(index, 0) });
+
+        let present_queue = physical_device
+            .queue_family_indices
+            .present_queue_family_index
+            .map(|index| unsafe { handle.get_device_queue(index, 0) });
+
         Ok(Self {
             _physical_device: physical_device,
             handle,
+            graphics_queue,
+            compute_queue,
+            transfer_queue,
+            sparse_binding_queue,
+            present_queue,
         })
     }
 }
