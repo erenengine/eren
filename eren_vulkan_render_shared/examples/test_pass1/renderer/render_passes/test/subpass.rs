@@ -1,25 +1,34 @@
 use std::sync::Arc;
 
-use eren_vulkan_render_shared::device::{Device, ShaderModuleCreationError};
+use ash::vk;
+use eren_vulkan_render_shared::{
+    device::{Device, GraphicsPipelineCreationError},
+    pipeline::graphics::{GraphicsPipeline, GraphicsPipelineConfig},
+};
 
-pub struct TestSubpass {}
+pub struct TestSubpass {
+    pipeline: GraphicsPipeline,
+}
 
 const VERT_SHADER_BYTES: &[u8] = include_bytes!("../../../shaders/shader.vert.spv");
 const FRAG_SHADER_BYTES: &[u8] = include_bytes!("../../../shaders/shader.frag.spv");
 
 impl TestSubpass {
-    pub fn new(device: Arc<Device>) -> Result<Self, ShaderModuleCreationError> {
-        let vertex_shader_module = device.create_shader_module(VERT_SHADER_BYTES)?;
-        let fragment_shader_module = device.create_shader_module(FRAG_SHADER_BYTES)?;
+    pub fn new(
+        device: Arc<Device>,
+        render_pass_handle: vk::RenderPass,
+        subpass_index: u32,
+    ) -> Result<Self, GraphicsPipelineCreationError> {
+        let pipeline = GraphicsPipeline::new(
+            device.clone(),
+            GraphicsPipelineConfig {
+                vert_shader_bytes: Some(VERT_SHADER_BYTES),
+                frag_shader_bytes: Some(FRAG_SHADER_BYTES),
+                render_pass_handle,
+                subpass_index,
+            },
+        )?;
 
-        log::debug!("Vertex shader module created");
-        log::debug!("Fragment shader module created");
-
-        //TODO: create pipeline
-
-        device.destroy_shader_module(vertex_shader_module);
-        device.destroy_shader_module(fragment_shader_module);
-
-        Ok(Self {})
+        Ok(Self { pipeline })
     }
 }

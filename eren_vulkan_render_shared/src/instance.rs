@@ -99,10 +99,14 @@ impl Instance {
         #[cfg(not(debug_assertions))]
         let enabled_layers = vec![];
 
-        let mut enabled_extensions =
-            ash_window::enumerate_required_extensions(window.display_handle().unwrap().as_raw())
-                .map_err(|e| InstanceInitializationError::EnumerateExtensions(e.to_string()))?
-                .to_vec();
+        let mut enabled_extensions = ash_window::enumerate_required_extensions(
+            window
+                .display_handle()
+                .expect("Failed to get display handle")
+                .as_raw(),
+        )
+        .map_err(|e| InstanceInitializationError::EnumerateExtensions(e.to_string()))?
+        .to_vec();
 
         #[cfg(debug_assertions)]
         enabled_extensions.push(debug_utils::NAME.as_ptr());
@@ -210,6 +214,16 @@ impl Instance {
         unsafe {
             self.handle
                 .get_physical_device_queue_family_properties(physical_device)
+        }
+    }
+
+    pub fn get_physical_device_memory_properties(
+        &self,
+        physical_device: vk::PhysicalDevice,
+    ) -> vk::PhysicalDeviceMemoryProperties {
+        unsafe {
+            self.handle
+                .get_physical_device_memory_properties(physical_device)
         }
     }
 

@@ -1,4 +1,8 @@
-use std::{collections::{BTreeMap, HashSet}, ffi::CStr, sync::Arc};
+use std::{
+    collections::{BTreeMap, HashSet},
+    ffi::CStr,
+    sync::Arc,
+};
 
 use ash::vk;
 use thiserror::Error;
@@ -272,8 +276,17 @@ pub struct PhysicalDevice {
     instance: Arc<Instance>,
     handle: vk::PhysicalDevice,
     pub queue_family_indices: QueueFamilyIndices,
+
     surface_info: SurfaceInfo,
+    pub preferred_format: vk::SurfaceFormatKHR,
+    preferred_present_mode: vk::PresentModeKHR,
+
+    memory_properties: vk::PhysicalDeviceMemoryProperties,
 }
+
+#[derive(Debug, Error)]
+#[error("Failed to find memory type index")]
+pub struct MemoryTypeIndexNotFoundError;
 
 impl PhysicalDevice {
     pub fn new(
@@ -285,11 +298,22 @@ impl PhysicalDevice {
         log::info!("Best physical device: {:#?}", best_candidate);
 
         if let Some(candidate) = best_candidate {
+            let memory_properties =
+                instance.get_physical_device_memory_properties(candidate.physical_device);
+
+            let preferred_format = candidate.surface_info.select_preferred_surface_format();
+            let preferred_present_mode = candidate.surface_info.select_preferred_present_mode();
+
             Ok(Self {
                 instance,
                 handle: candidate.physical_device,
                 queue_family_indices: candidate.queue_family_indices,
+
                 surface_info: candidate.surface_info,
+                preferred_format,
+                preferred_present_mode,
+
+                memory_properties,
             })
         } else {
             Err(PhysicalDeviceInitializationError::NoCompatiblePhysicalDevice)
@@ -326,5 +350,18 @@ impl PhysicalDevice {
         info: vk::DeviceCreateInfo,
     ) -> Result<ash::Device, DeviceCreationError> {
         self.instance.create_device(self.handle, info)
+    }
+
+    pub fn find_memory_type_index(
+        &self,
+        type_bits: u32,
+        properties: vk::MemoryPropertyFlags,
+    ) -> Result<u32, MemoryTypeIndexNotFoundError> {
+        for (i, mtype) in self.memory_properties.memory_types.iter().enumerate() {
+            if (type_bits & (1 << i)) != 0 && mtype.property_flags.contains(properties) {
+                return Ok(i as u32);
+            }
+        }
+        Err(MemoryTypeIndexNotFoundError)
     }
 }
