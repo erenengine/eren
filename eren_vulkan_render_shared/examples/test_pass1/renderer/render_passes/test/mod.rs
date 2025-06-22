@@ -2,18 +2,29 @@ use std::sync::Arc;
 
 use ash::vk;
 use eren_vulkan_render_shared::{
-    device::{Device, GraphicsPipelineCreationError, RenderPassCreationError},
+    device::{Device, FramebufferCreationError, RenderPassCreationError},
     subpass::get_graphic_color_subpass_desc,
+    swapchain::Swapchain,
 };
 use thiserror::Error;
 
 mod subpass;
 
-use crate::test_pass1::renderer::render_passes::test::subpass::TestSubpass;
+use crate::test_pass1::renderer::render_passes::test::subpass::{
+    TestSubpass, TestSubpassInitializationError,
+};
+
+const CLEAR_VALUES: [vk::ClearValue; 1] = [vk::ClearValue {
+    color: vk::ClearColorValue {
+        float32: [0.1921, 0.302, 0.4745, 1.0],
+    },
+}];
 
 pub struct TestRenderPass {
+    device: Arc<Device>,
+    render_area: vk::Rect2D,
     render_pass: vk::RenderPass,
-    //swapchain_framebuffers: Vec<vk::Framebuffer>,
+    swapchain_framebuffers: Vec<vk::Framebuffer>,
     subpass: TestSubpass,
 }
 
@@ -22,12 +33,19 @@ pub enum TestRenderPassInitializationError {
     #[error("Failed to create render pass: {0}")]
     CreateRenderPass(#[from] RenderPassCreationError),
 
-    #[error("Failed to create graphics pipeline: {0}")]
-    CreateGraphicsPipeline(#[from] GraphicsPipelineCreationError),
+    #[error("Failed to create framebuffers: {0}")]
+    CreateFramebuffers(#[from] FramebufferCreationError),
+
+    #[error("Failed to create subpass: {0}")]
+    CreateSubpass(#[from] TestSubpassInitializationError),
 }
 
 impl TestRenderPass {
-    pub fn new(device: Arc<Device>) -> Result<Self, TestRenderPassInitializationError> {
+    pub fn new(
+        device: Arc<Device>,
+        swapchain: &Swapchain,
+        render_area: vk::Rect2D,
+    ) -> Result<Self, TestRenderPassInitializationError> {
         let color_attachment = device.get_swapchain_color_attachment_desc();
         let color_attachment_ref = device.get_color_attachment_ref(0);
 
@@ -59,10 +77,14 @@ impl TestRenderPass {
             ],
         )?;
 
-        let subpass = TestSubpass::new(device.clone(), render_pass, 0)?;
+        let swapchain_framebuffers = swapchain.create_framebuffers(render_pass)?;
+        let subpass = TestSubpass::new(device.clone(), render_area, render_pass, 0)?;
 
         Ok(Self {
+            device,
+            render_area,
             render_pass,
+            swapchain_framebuffers,
             subpass,
         })
     }
@@ -70,8 +92,30 @@ impl TestRenderPass {
     pub fn record_commands(
         &self,
         command_buffer: vk::CommandBuffer,
-        swapchain_framebuffer_idx: u32,
+        swapchain_framebuffer_idx: usize,
     ) {
-        //self.subpass.record_commands(command_buffer, swapchain_framebuffer_idx);
+        self.device.begin_render_pass(
+            command_buffer,
+            self.render_pass,
+            self.swapchain_framebuffers[swapchain_framebuffer_idx],
+            self.render_area,
+            &CLEAR_VALUES,
+        );
+
+        self.subpass.record_commands(command_buffer);
+
+        self.device.end_render_pass(command_buffer);
+    }
+}
+
+impl Drop for TestRenderPass {
+    fn drop(&mut self) {
+        self.device.wait_idle();
+
+        for &framebuffer in self.swapchain_framebuffers.iter() {
+            self.device.destroy_framebuffer(framebuffer);
+        }
+
+        self.device.destroy_render_pass(self.render_pass);
     }
 }

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use ash::vk;
 use eren_vulkan_render_shared::{
     command::CommandPool, device::Device, instance::Instance, physical_device::PhysicalDevice,
     surface::Surface, swapchain::Swapchain,
@@ -43,8 +44,19 @@ impl WindowEventHandler for TestWindowEventHandler {
             .unwrap(),
         );
         let command_pool = Arc::new(CommandPool::new(device.clone()).unwrap());
-        let renderer: TestRenderer =
-            TestRenderer::new(device.clone(), swapchain.clone(), command_pool.clone()).unwrap();
+        let renderer: TestRenderer = TestRenderer::new(
+            device.clone(),
+            swapchain.clone(),
+            &command_pool,
+            vk::Rect2D {
+                offset: vk::Offset2D::default(),
+                extent: vk::Extent2D {
+                    width: window.inner_size().width,
+                    height: window.inner_size().height,
+                },
+            },
+        )
+        .unwrap();
 
         log::debug!("Renderer created");
 
@@ -82,7 +94,11 @@ impl WindowEventHandler for TestWindowEventHandler {
         self.renderer = TestRenderer::new(
             self.device.clone(),
             self.swapchain.clone(),
-            self.command_pool.clone(),
+            &self.command_pool,
+            vk::Rect2D {
+                offset: vk::Offset2D::default(),
+                extent: vk::Extent2D { width, height },
+            },
         )
         .unwrap();
     }
@@ -94,7 +110,11 @@ impl WindowEventHandler for TestWindowEventHandler {
     fn on_redraw_requested(&mut self) {
         //log::debug!("Redraw requested");
 
-        self.renderer.render();
+        let is_suboptimal = self.renderer.render().unwrap();
+
+        if is_suboptimal {
+            //TODO: handle suboptimal
+        }
 
         self.window.request_redraw();
     }

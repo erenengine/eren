@@ -1,9 +1,13 @@
 use std::sync::Arc;
 
+use ash::vk;
 use eren_vulkan_render_shared::{
     command::CommandPool,
-    device::{Device, SubmitGraphicsCommandsError, WaitForFencesError},
-    frame::{FrameManager, FrameManagerInitializationError, NextFrameError},
+    device::{
+        CommandBufferBeginError, CommandBufferEndError, CommandBufferResetError, Device,
+        ResetFencesError, SubmitGraphicsCommandsError, WaitForFencesError,
+    },
+    frame::{FrameManager, FrameManagerInitializationError},
     swapchain::{Swapchain, SwapchainAcquireError, SwapchainPresentError},
 };
 use thiserror::Error;
@@ -30,11 +34,20 @@ pub enum TestRendererInitializationError {
 
 #[derive(Debug, Error)]
 pub enum RenderError {
-    #[error("Failed to get next frame: {0}")]
-    NextFrame(#[from] NextFrameError),
-
     #[error("Failed to wait for fences: {0}")]
     WaitForFences(#[from] WaitForFencesError),
+
+    #[error("Failed to reset fences: {0}")]
+    ResetFences(#[from] ResetFencesError),
+
+    #[error("Failed to reset command buffer: {0}")]
+    ResetCommandBuffer(#[from] CommandBufferResetError),
+
+    #[error("Failed to begin command buffer: {0}")]
+    BeginCommandBuffer(#[from] CommandBufferBeginError),
+
+    #[error("Failed to end command buffer: {0}")]
+    EndCommandBuffer(#[from] CommandBufferEndError),
 
     #[error("Failed to acquire next image: {0}")]
     AcquireNextImage(#[from] SwapchainAcquireError),
@@ -50,10 +63,13 @@ impl TestRenderer {
     pub fn new(
         device: Arc<Device>,
         swapchain: Arc<Swapchain>,
-        command_pool: Arc<CommandPool>,
+        command_pool: &CommandPool,
+        render_area: vk::Rect2D,
     ) -> Result<Self, TestRendererInitializationError> {
-        let frame_mgr = FrameManager::new(device.clone(), command_pool.clone())?;
-        let render_pass = render_passes::test::TestRenderPass::new(device.clone())?;
+        let frame_mgr = FrameManager::new(device.clone(), command_pool, swapchain.image_len)?;
+
+        let render_pass =
+            render_passes::test::TestRenderPass::new(device.clone(), &swapchain, render_area)?;
 
         Ok(Self {
             device,
@@ -63,30 +79,46 @@ impl TestRenderer {
         })
     }
 
-    pub fn render(&mut self) -> Result<(), RenderError> {
-        let frame = self.frame_mgr.next()?;
+    pub fn render(&mut self) -> Result<bool, RenderError> {
+        let (image_available, in_flight, cmd_buffer) = {
+            let frame = self.frame_mgr.next_frame();
+            (frame.image_available, frame.in_flight, frame.cmd_buffer)
+        };
 
-        let (image_idx, is_suboptimal) =
-            self.swapchain.acquire_next_image(frame.image_available)?;
+        // 이전 프레임 GPU 작업 완료 대기
+        self.device.wait_for_fence(in_flight)?;
+        self.device.reset_fence(in_flight)?;
 
-        //TODO: handle suboptimal
-
-        self.render_pass
-            .record_commands(frame.cmd_buffer, image_idx);
-
-        /*self.device.submit_graphics_commands(
-            frame.cmd_buffer,
-            frame.image_available,
-            frame.render_finished,
-            frame.in_flight,
+        let (image_idx, is_suboptimal) = self.swapchain.acquire_next_image(
+            image_available, // wait
         )?;
 
-        let is_suboptimal =
-            self.device
-                .present(&self.swapchain, image_idx, frame.render_finished)?;*/
+        if is_suboptimal {
+            return Ok(true);
+        }
 
-        //TODO: handle suboptimal
+        // 이미지 전용 세마포어 가져오기
+        let img = self.frame_mgr.swapchain_image(image_idx as usize);
 
-        Ok(())
+        self.device.reset_command_buffer(cmd_buffer)?;
+        self.device.begin_command_buffer(cmd_buffer)?;
+
+        self.render_pass
+            .record_commands(cmd_buffer, image_idx as usize);
+
+        self.device.end_command_buffer(cmd_buffer)?;
+
+        self.device.submit_graphics_commands(
+            cmd_buffer,
+            image_available,
+            img.render_finished,
+            in_flight,
+        )?;
+
+        let is_suboptimal = self
+            .device
+            .present(&self.swapchain, image_idx, img.render_finished)?;
+
+        Ok(is_suboptimal)
     }
 }

@@ -4,13 +4,6 @@ use ash::vk;
 
 use crate::device::{Device, GraphicsPipelineCreationError};
 
-pub struct GraphicsPipelineConfig {
-    pub vert_shader_bytes: Option<&'static [u8]>,
-    pub frag_shader_bytes: Option<&'static [u8]>,
-    pub render_pass_handle: vk::RenderPass,
-    pub subpass_index: u32,
-}
-
 pub struct GraphicsPipeline {
     device: Arc<Device>,
     handle: vk::Pipeline,
@@ -19,19 +12,17 @@ pub struct GraphicsPipeline {
 impl GraphicsPipeline {
     pub fn new(
         device: Arc<Device>,
-        config: GraphicsPipelineConfig,
+        info: vk::GraphicsPipelineCreateInfo,
+        vert_shader_bytes: Option<&'static [u8]>,
+        frag_shader_bytes: Option<&'static [u8]>,
     ) -> Result<Self, GraphicsPipelineCreationError> {
-        let info = vk::GraphicsPipelineCreateInfo::default()
-            .render_pass(config.render_pass_handle)
-            .subpass(config.subpass_index);
-
-        let handle = device.create_graphics_pipeline(
-            info,
-            config.vert_shader_bytes,
-            config.frag_shader_bytes,
-        )?;
-
+        let handle = device.create_graphics_pipeline(info, vert_shader_bytes, frag_shader_bytes)?;
         Ok(Self { device, handle })
+    }
+
+    pub fn bind_pipeline(&self, command_buffer: vk::CommandBuffer) {
+        self.device
+            .bind_pipeline(command_buffer, vk::PipelineBindPoint::GRAPHICS, self.handle);
     }
 }
 

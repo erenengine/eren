@@ -18,6 +18,8 @@ pub struct Swapchain {
     loader: swapchain::Device,
     handle: vk::SwapchainKHR,
     image_views: Vec<vk::ImageView>,
+
+    pub image_len: usize,
 }
 
 #[derive(Debug, Error)]
@@ -96,6 +98,7 @@ impl Swapchain {
             loader,
             handle,
             image_views,
+            image_len: images.len(),
         })
     }
 
@@ -137,14 +140,14 @@ impl Swapchain {
         &self,
         present_queue: vk::Queue,
         image_index: u32,
-        semaphore: vk::Semaphore,
+        wait_semaphore: vk::Semaphore,
     ) -> Result<bool, SwapchainPresentError> {
         Ok(unsafe {
             self.loader
                 .queue_present(
                     present_queue,
                     &vk::PresentInfoKHR::default()
-                        .wait_semaphores(std::slice::from_ref(&semaphore))
+                        .wait_semaphores(std::slice::from_ref(&wait_semaphore))
                         .swapchains(std::slice::from_ref(&self.handle))
                         .image_indices(std::slice::from_ref(&image_index)),
                 )

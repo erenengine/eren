@@ -37,6 +37,14 @@ pub struct CommandBufferAllocationError(String);
 pub struct CommandBufferResetError(String);
 
 #[derive(Debug, Error)]
+#[error("Failed to begin command buffer: {0}")]
+pub struct CommandBufferBeginError(String);
+
+#[derive(Debug, Error)]
+#[error("Failed to end command buffer: {0}")]
+pub struct CommandBufferEndError(String);
+
+#[derive(Debug, Error)]
 #[error("Failed to create semaphore: {0}")]
 pub struct SemaphoreCreationError(String);
 
@@ -47,6 +55,10 @@ pub struct FenceCreationError(String);
 #[derive(Debug, Error)]
 #[error("Failed to wait for fences: {0}")]
 pub struct WaitForFencesError(String);
+
+#[derive(Debug, Error)]
+#[error("Failed to reset fences: {0}")]
+pub struct ResetFencesError(String);
 
 #[derive(Debug, Error)]
 pub enum ImageWithMemoryCreationError {
@@ -99,6 +111,10 @@ pub enum ShaderModuleCreationError {
     #[error("Failed to create shader module: {0}")]
     CreateShaderModule(String),
 }
+
+#[derive(Debug, Error)]
+#[error("Failed to create pipeline layout: {0}")]
+pub struct PipelineLayoutCreationError(String);
 
 #[derive(Debug, Error)]
 pub enum GraphicsPipelineCreationError {
@@ -234,6 +250,32 @@ impl Device {
         Ok(())
     }
 
+    pub fn begin_command_buffer(
+        &self,
+        command_buffer: vk::CommandBuffer,
+    ) -> Result<(), CommandBufferBeginError> {
+        unsafe {
+            self.handle
+                .begin_command_buffer(command_buffer, &vk::CommandBufferBeginInfo::default())
+                .map_err(|e| CommandBufferBeginError(e.to_string()))?;
+        }
+
+        Ok(())
+    }
+
+    pub fn end_command_buffer(
+        &self,
+        command_buffer: vk::CommandBuffer,
+    ) -> Result<(), CommandBufferEndError> {
+        unsafe {
+            self.handle
+                .end_command_buffer(command_buffer)
+                .map_err(|e| CommandBufferEndError(e.to_string()))?;
+        }
+
+        Ok(())
+    }
+
     pub fn free_command_buffers(
         &self,
         command_pool: vk::CommandPool,
@@ -275,6 +317,16 @@ impl Device {
             self.handle
                 .wait_for_fences(&[fence], true, u64::MAX)
                 .map_err(|e| WaitForFencesError(e.to_string()))?;
+        }
+
+        Ok(())
+    }
+
+    pub fn reset_fence(&self, fence: vk::Fence) -> Result<(), ResetFencesError> {
+        unsafe {
+            self.handle
+                .reset_fences(&[fence])
+                .map_err(|e| ResetFencesError(e.to_string()))?;
         }
 
         Ok(())
@@ -570,6 +622,28 @@ impl Device {
         }
     }
 
+    pub fn create_pipeline_layout(
+        &self,
+        set_layouts: &[vk::DescriptorSetLayout],
+        push_constant_ranges: &[vk::PushConstantRange],
+    ) -> Result<vk::PipelineLayout, PipelineLayoutCreationError> {
+        let pipeline_layout_info = vk::PipelineLayoutCreateInfo::default()
+            .set_layouts(set_layouts)
+            .push_constant_ranges(push_constant_ranges);
+
+        Ok(unsafe {
+            self.handle
+                .create_pipeline_layout(&pipeline_layout_info, None)
+                .map_err(|e| PipelineLayoutCreationError(e.to_string()))?
+        })
+    }
+
+    pub fn destroy_pipeline_layout(&self, pipeline_layout: vk::PipelineLayout) {
+        unsafe {
+            self.handle.destroy_pipeline_layout(pipeline_layout, None);
+        }
+    }
+
     pub fn create_graphics_pipeline(
         &self,
         create_info: vk::GraphicsPipelineCreateInfo,
@@ -636,6 +710,65 @@ impl Device {
         }
     }
 
+    pub fn begin_render_pass(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        render_pass: vk::RenderPass,
+        framebuffer: vk::Framebuffer,
+        render_area: vk::Rect2D,
+        clear_values: &[vk::ClearValue],
+    ) {
+        unsafe {
+            self.handle.cmd_begin_render_pass2(
+                command_buffer,
+                &vk::RenderPassBeginInfo::default()
+                    .render_pass(render_pass)
+                    .framebuffer(framebuffer)
+                    .render_area(render_area)
+                    .clear_values(clear_values),
+                &vk::SubpassBeginInfo::default().contents(vk::SubpassContents::INLINE),
+            );
+        }
+    }
+
+    pub fn bind_pipeline(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        pipeline_bind_point: vk::PipelineBindPoint,
+        pipeline: vk::Pipeline,
+    ) {
+        unsafe {
+            self.handle
+                .cmd_bind_pipeline(command_buffer, pipeline_bind_point, pipeline);
+        }
+    }
+
+    pub fn draw(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        vertex_count: u32,
+        instance_count: u32,
+        first_vertex: u32,
+        first_instance: u32,
+    ) {
+        unsafe {
+            self.handle.cmd_draw(
+                command_buffer,
+                vertex_count,
+                instance_count,
+                first_vertex,
+                first_instance,
+            );
+        }
+    }
+
+    pub fn end_render_pass(&self, command_buffer: vk::CommandBuffer) {
+        unsafe {
+            self.handle
+                .cmd_end_render_pass2(command_buffer, &vk::SubpassEndInfo::default());
+        }
+    }
+
     pub fn submit_graphics_commands(
         &self,
         command_buffer: vk::CommandBuffer,
@@ -674,12 +807,12 @@ impl Device {
         &self,
         swapchain: &Swapchain,
         image_index: u32,
-        semaphore: vk::Semaphore,
+        wait_semaphore: vk::Semaphore,
     ) -> Result<bool, SwapchainPresentError> {
         swapchain.present(
             self.present_queue.expect("Present queue not found"),
             image_index,
-            semaphore,
+            wait_semaphore,
         )
     }
 }
