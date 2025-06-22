@@ -77,12 +77,10 @@ impl FrameManager {
     pub fn next(&mut self) -> Result<&mut FrameData, NextFrameError> {
         let frame = &mut self.frames[self.current_frame];
 
-        self.device.wait_for_fence(frame.in_flight)?;
-
-        self.device.reset_command_buffer(frame.cmd_buffer)?;
+        //self.device.wait_for_fence(frame.in_flight)?;
+        //self.device.reset_command_buffer(frame.cmd_buffer)?;
 
         self.current_frame = (self.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
-
         Ok(frame)
     }
 }

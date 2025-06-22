@@ -14,6 +14,7 @@ use crate::test_pass1::renderer::render_passes::test::subpass::TestSubpass;
 pub struct TestRenderPass {
     render_pass: vk::RenderPass,
     //swapchain_framebuffers: Vec<vk::Framebuffer>,
+    subpass: TestSubpass,
 }
 
 #[derive(Debug, Error)]
@@ -33,11 +34,11 @@ impl TestRenderPass {
         let color_refs = [color_attachment_ref];
 
         // subpass 0
-        let subpass = get_graphic_color_subpass_desc(&color_refs);
+        let subpass_desc = get_graphic_color_subpass_desc(&color_refs);
 
         let render_pass = device.create_render_pass(
             &[color_attachment],
-            &[subpass],
+            &[subpass_desc],
             &[
                 // external -> subpass 0
                 vk::SubpassDependency2::default()
@@ -58,7 +59,12 @@ impl TestRenderPass {
             ],
         )?;
 
-        Ok(Self { render_pass })
+        let subpass = TestSubpass::new(device.clone(), render_pass, 0)?;
+
+        Ok(Self {
+            render_pass,
+            subpass,
+        })
     }
 
     pub fn record_commands(
@@ -66,5 +72,6 @@ impl TestRenderPass {
         command_buffer: vk::CommandBuffer,
         swapchain_framebuffer_idx: u32,
     ) {
+        //self.subpass.record_commands(command_buffer, swapchain_framebuffer_idx);
     }
 }
