@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use eren_vulkan_render_shared::{
-    device::Device, instance::Instance, physical_device::PhysicalDevice, surface::Surface,
-    swapchain::Swapchain,
+    command::CommandPool, device::Device, instance::Instance, physical_device::PhysicalDevice,
+    surface::Surface, swapchain::Swapchain,
 };
 use eren_window::window::{WindowConfig, WindowEventHandler, WindowLifecycle};
 use winit::window::Window;
@@ -19,6 +19,7 @@ struct TestWindowEventHandler {
     physical_device: Arc<PhysicalDevice>,
     device: Arc<Device>,
     swapchain: Arc<Swapchain>,
+    command_pool: Arc<CommandPool>,
     renderer: TestRenderer,
 }
 
@@ -41,7 +42,9 @@ impl WindowEventHandler for TestWindowEventHandler {
             )
             .unwrap(),
         );
-        let renderer: TestRenderer = TestRenderer::new(device.clone(), swapchain.clone()).unwrap();
+        let command_pool = Arc::new(CommandPool::new(device.clone()).unwrap());
+        let renderer: TestRenderer =
+            TestRenderer::new(device.clone(), swapchain.clone(), command_pool.clone()).unwrap();
 
         log::debug!("Renderer created");
 
@@ -51,6 +54,7 @@ impl WindowEventHandler for TestWindowEventHandler {
             physical_device,
             device,
             swapchain,
+            command_pool,
             renderer,
         }
     }
@@ -72,8 +76,15 @@ impl WindowEventHandler for TestWindowEventHandler {
             .unwrap(),
         );
 
-        // renderer도 재생성
-        self.renderer = TestRenderer::new(self.device.clone(), self.swapchain.clone()).unwrap();
+        // command pool과 renderer 재생성
+        self.command_pool = Arc::new(CommandPool::new(self.device.clone()).unwrap());
+
+        self.renderer = TestRenderer::new(
+            self.device.clone(),
+            self.swapchain.clone(),
+            self.command_pool.clone(),
+        )
+        .unwrap();
     }
 
     fn on_scale_factor_changed(&mut self, scale_factor: f64) {

@@ -31,4 +31,11 @@ impl TestSubpass {
 
         Ok(Self { pipeline })
     }
+
+    pub fn record_commands(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        current_swapchain_framebuffer: vk::Framebuffer,
+    ) {
+    }
 }

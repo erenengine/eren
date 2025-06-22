@@ -1,5 +1,7 @@
+pub mod command;
 pub mod debug;
 pub mod device;
+pub mod frame;
 pub mod instance;
 pub mod physical_device;
 pub mod pipeline;

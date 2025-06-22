@@ -17,16 +17,16 @@ pub struct TestRenderPass {
 }
 
 #[derive(Debug, Error)]
-pub enum TestRenderPassCreationError {
+pub enum TestRenderPassInitializationError {
     #[error("Failed to create render pass: {0}")]
-    RenderPassCreationFailed(#[from] RenderPassCreationError),
+    CreateRenderPass(#[from] RenderPassCreationError),
 
     #[error("Failed to create graphics pipeline: {0}")]
-    GraphicsPipelineCreationFailed(#[from] GraphicsPipelineCreationError),
+    CreateGraphicsPipeline(#[from] GraphicsPipelineCreationError),
 }
 
 impl TestRenderPass {
-    pub fn new(device: Arc<Device>) -> Result<Self, TestRenderPassCreationError> {
+    pub fn new(device: Arc<Device>) -> Result<Self, TestRenderPassInitializationError> {
         let color_attachment = device.get_swapchain_color_attachment_desc();
         let color_attachment_ref = device.get_color_attachment_ref(0);
 
@@ -53,11 +53,18 @@ impl TestRenderPass {
                     .src_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
                     .dst_subpass(vk::SUBPASS_EXTERNAL)
                     .dst_stage_mask(vk::PipelineStageFlags::BOTTOM_OF_PIPE) // 가장 마지막 단계
-                    .dst_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)
+                    .dst_access_mask(vk::AccessFlags::MEMORY_READ)
                     .dependency_flags(vk::DependencyFlags::BY_REGION),
             ],
         )?;
 
         Ok(Self { render_pass })
+    }
+
+    pub fn record_commands(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_framebuffer_idx: u32,
+    ) {
     }
 }

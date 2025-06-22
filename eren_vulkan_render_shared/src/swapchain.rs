@@ -32,6 +32,14 @@ pub enum SwapchainInitializationError {
     CreateImageView(#[from] ImageViewCreationError),
 }
 
+#[derive(Debug, Error)]
+#[error("Failed to acquire next image: {0}")]
+pub struct SwapchainAcquireError(String);
+
+#[derive(Debug, Error)]
+#[error("Failed to present swapchain: {0}")]
+pub struct SwapchainPresentError(String);
+
 impl Swapchain {
     pub fn new(
         surface: Arc<Surface>,
@@ -112,6 +120,36 @@ impl Swapchain {
         }
 
         Ok(framebuffers)
+    }
+
+    pub fn acquire_next_image(
+        &self,
+        semaphore: vk::Semaphore,
+    ) -> Result<(u32, bool), SwapchainAcquireError> {
+        Ok(unsafe {
+            self.loader
+                .acquire_next_image(self.handle, u64::MAX, semaphore, vk::Fence::null())
+                .map_err(|e| SwapchainAcquireError(e.to_string()))?
+        })
+    }
+
+    pub fn present(
+        &self,
+        present_queue: vk::Queue,
+        image_index: u32,
+        semaphore: vk::Semaphore,
+    ) -> Result<bool, SwapchainPresentError> {
+        Ok(unsafe {
+            self.loader
+                .queue_present(
+                    present_queue,
+                    &vk::PresentInfoKHR::default()
+                        .wait_semaphores(std::slice::from_ref(&semaphore))
+                        .swapchains(std::slice::from_ref(&self.handle))
+                        .image_indices(std::slice::from_ref(&image_index)),
+                )
+                .map_err(|e| SwapchainPresentError(e.to_string()))?
+        })
     }
 }
 

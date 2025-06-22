@@ -9,6 +9,7 @@ use crate::{
         MemoryTypeIndexNotFoundError, PhysicalDevice, get_required_physical_device_extensions,
         get_required_physical_device_features,
     },
+    swapchain::{Swapchain, SwapchainPresentError},
 };
 
 pub struct Device {
@@ -22,6 +23,30 @@ pub struct Device {
     sparse_binding_queue: Option<vk::Queue>,
     present_queue: Option<vk::Queue>,
 }
+
+#[derive(Debug, Error)]
+#[error("Failed to create command pool: {0}")]
+pub struct CommandPoolCreationError(String);
+
+#[derive(Debug, Error)]
+#[error("Failed to allocate command buffer: {0}")]
+pub struct CommandBufferAllocationError(String);
+
+#[derive(Debug, Error)]
+#[error("Failed to reset command buffer: {0}")]
+pub struct CommandBufferResetError(String);
+
+#[derive(Debug, Error)]
+#[error("Failed to create semaphore: {0}")]
+pub struct SemaphoreCreationError(String);
+
+#[derive(Debug, Error)]
+#[error("Failed to create fence: {0}")]
+pub struct FenceCreationError(String);
+
+#[derive(Debug, Error)]
+#[error("Failed to wait for fences: {0}")]
+pub struct WaitForFencesError(String);
 
 #[derive(Debug, Error)]
 pub enum ImageWithMemoryCreationError {
@@ -84,6 +109,10 @@ pub enum GraphicsPipelineCreationError {
     CreateGraphicsPipeline(String),
 }
 
+#[derive(Debug, Error)]
+#[error("Failed to submit graphics commands: {0}")]
+pub struct SubmitGraphicsCommandsError(String);
+
 impl Device {
     pub fn new(
         instance: Arc<Instance>,
@@ -141,15 +170,119 @@ impl Device {
         })
     }
 
-    pub fn create_swapchain_loader(&self) -> swapchain::Device {
-        self.instance.create_swapchain_loader(&self.handle)
-    }
-
     pub fn wait_idle(&self) {
         unsafe {
             self.handle
                 .device_wait_idle()
                 .expect("Failed to wait for device idle");
+        }
+    }
+
+    pub fn create_swapchain_loader(&self) -> swapchain::Device {
+        self.instance.create_swapchain_loader(&self.handle)
+    }
+
+    pub fn create_command_pool(&self) -> Result<vk::CommandPool, CommandPoolCreationError> {
+        let command_pool_info = vk::CommandPoolCreateInfo::default()
+            .queue_family_index(
+                self.physical_device
+                    .queue_family_indices
+                    .graphics_queue_family_index
+                    .expect("Graphics queue family index not found"),
+            )
+            .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER);
+
+        Ok(unsafe {
+            self.handle
+                .create_command_pool(&command_pool_info, None)
+                .map_err(|e| CommandPoolCreationError(e.to_string()))?
+        })
+    }
+
+    pub fn destroy_command_pool(&self, command_pool: vk::CommandPool) {
+        unsafe {
+            self.handle.destroy_command_pool(command_pool, None);
+        }
+    }
+
+    pub fn allocate_command_buffers(
+        &self,
+        command_pool: vk::CommandPool,
+        command_buffer_count: u32,
+    ) -> Result<Vec<vk::CommandBuffer>, CommandBufferAllocationError> {
+        Ok(unsafe {
+            self.handle
+                .allocate_command_buffers(
+                    &vk::CommandBufferAllocateInfo::default()
+                        .command_pool(command_pool)
+                        .command_buffer_count(command_buffer_count),
+                )
+                .map_err(|e| CommandBufferAllocationError(e.to_string()))?
+        })
+    }
+
+    pub fn reset_command_buffer(
+        &self,
+        command_buffer: vk::CommandBuffer,
+    ) -> Result<(), CommandBufferResetError> {
+        unsafe {
+            self.handle
+                .reset_command_buffer(command_buffer, vk::CommandBufferResetFlags::empty())
+                .map_err(|e| CommandBufferResetError(e.to_string()))?;
+        }
+
+        Ok(())
+    }
+
+    pub fn free_command_buffers(
+        &self,
+        command_pool: vk::CommandPool,
+        command_buffers: Vec<vk::CommandBuffer>,
+    ) {
+        unsafe {
+            self.handle
+                .free_command_buffers(command_pool, &command_buffers);
+        }
+    }
+
+    pub fn create_semaphore(&self) -> Result<vk::Semaphore, SemaphoreCreationError> {
+        Ok(unsafe {
+            self.handle
+                .create_semaphore(&vk::SemaphoreCreateInfo::default(), None)
+                .map_err(|e| SemaphoreCreationError(e.to_string()))?
+        })
+    }
+
+    pub fn destroy_semaphore(&self, semaphore: vk::Semaphore) {
+        unsafe {
+            self.handle.destroy_semaphore(semaphore, None);
+        }
+    }
+
+    pub fn create_fence_signaled(&self) -> Result<vk::Fence, FenceCreationError> {
+        Ok(unsafe {
+            self.handle
+                .create_fence(
+                    &vk::FenceCreateInfo::default().flags(vk::FenceCreateFlags::SIGNALED),
+                    None,
+                )
+                .map_err(|e| FenceCreationError(e.to_string()))?
+        })
+    }
+
+    pub fn wait_for_fence(&self, fence: vk::Fence) -> Result<(), WaitForFencesError> {
+        unsafe {
+            self.handle
+                .wait_for_fences(&[fence], true, u64::MAX)
+                .map_err(|e| WaitForFencesError(e.to_string()))?;
+        }
+
+        Ok(())
+    }
+
+    pub fn destroy_fence(&self, fence: vk::Fence) {
+        unsafe {
+            self.handle.destroy_fence(fence, None);
         }
     }
 
@@ -501,6 +634,53 @@ impl Device {
         unsafe {
             self.handle.destroy_pipeline(pipeline, None);
         }
+    }
+
+    pub fn submit_graphics_commands(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        image_available_semaphore: vk::Semaphore,
+        render_finished_semaphore: vk::Semaphore,
+        in_flight_fence: vk::Fence,
+    ) -> Result<(), SubmitGraphicsCommandsError> {
+        // 지난 프레임에서 signal 된 펜스를 다시 쓸 수 있게 reset
+        unsafe {
+            self.handle
+                .reset_fences(&[in_flight_fence])
+                .map_err(|e| SubmitGraphicsCommandsError(e.to_string()))?;
+        }
+
+        // 세마포어-대상 스테이지 매핑
+        let wait_stages = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
+
+        let submit_info = vk::SubmitInfo::default()
+            .wait_semaphores(std::slice::from_ref(&image_available_semaphore))
+            .wait_dst_stage_mask(&wait_stages)
+            .command_buffers(std::slice::from_ref(&command_buffer))
+            .signal_semaphores(std::slice::from_ref(&render_finished_semaphore));
+
+        // 제출
+        unsafe {
+            self.handle.queue_submit(
+                self.graphics_queue.expect("Graphics queue not found"),
+                &[submit_info],
+                in_flight_fence,
+            )
+        }
+        .map_err(|e| SubmitGraphicsCommandsError(e.to_string()))
+    }
+
+    pub fn present(
+        &self,
+        swapchain: &Swapchain,
+        image_index: u32,
+        semaphore: vk::Semaphore,
+    ) -> Result<bool, SwapchainPresentError> {
+        swapchain.present(
+            self.present_queue.expect("Present queue not found"),
+            image_index,
+            semaphore,
+        )
     }
 }
 
