@@ -15,7 +15,7 @@ use crate::test_pass1::renderer::TestRenderer;
 
 struct TestWindowEventHandler {
     window: Arc<Window>,
-    surface: Surface,
+    surface: Arc<Surface>,
     physical_device: Arc<PhysicalDevice>,
     device: Arc<Device>,
     swapchain: Arc<Swapchain>,
@@ -27,12 +27,12 @@ impl WindowEventHandler for TestWindowEventHandler {
         log::debug!("Window created");
 
         let instance = Arc::new(Instance::new(window.clone()).unwrap());
-        let surface = Surface::new(&instance).unwrap();
+        let surface = Arc::new(Surface::new(&instance).unwrap());
         let physical_device = Arc::new(PhysicalDevice::new(instance.clone(), &surface).unwrap());
         let device = Arc::new(Device::new(instance.clone(), physical_device.clone()).unwrap());
         let swapchain = Arc::new(
             Swapchain::new(
-                &surface,
+                surface.clone(),
                 &physical_device,
                 device.clone(),
                 window.inner_size().width,
@@ -58,10 +58,11 @@ impl WindowEventHandler for TestWindowEventHandler {
     fn on_resized(&mut self, width: u32, height: u32) {
         log::debug!("Window resized: {}x{}", width, height);
 
+        // 화면 크기 변경 시 swapchain 재생성
         let old_swapchain = self.swapchain.clone();
         self.swapchain = Arc::new(
             Swapchain::new(
-                &self.surface,
+                self.surface.clone(),
                 &self.physical_device,
                 self.device.clone(),
                 width,
@@ -70,6 +71,9 @@ impl WindowEventHandler for TestWindowEventHandler {
             )
             .unwrap(),
         );
+
+        // renderer도 재생성
+        self.renderer = TestRenderer::new(self.device.clone(), self.swapchain.clone()).unwrap();
     }
 
     fn on_scale_factor_changed(&mut self, scale_factor: f64) {

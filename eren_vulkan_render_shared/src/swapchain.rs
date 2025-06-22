@@ -9,6 +9,9 @@ use ash::{khr::swapchain, vk};
 use thiserror::Error;
 
 pub struct Swapchain {
+    // 생명주기 상 스왑체인이 서피스보다 먼저 해제되어야 함
+    _surface: Arc<Surface>,
+
     device: Arc<Device>,
     window_width: u32,
     window_height: u32,
@@ -31,7 +34,7 @@ pub enum SwapchainInitializationError {
 
 impl Swapchain {
     pub fn new(
-        surface: &Surface,
+        surface: Arc<Surface>,
         physical_device: &PhysicalDevice,
         device: Arc<Device>,
         window_width: u32,
@@ -78,6 +81,7 @@ impl Swapchain {
         }
 
         Ok(Self {
+            _surface: surface,
             device,
             window_width,
             window_height,
