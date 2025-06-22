@@ -3,11 +3,14 @@ use std::sync::Arc;
 use ash::{khr, vk};
 use thiserror::Error;
 
-use crate::instance::{Instance, SurfaceCreationError};
+use crate::{
+    instance::{Instance, SurfaceCreationError},
+    physical_device::PhysicalDevice,
+};
 
 #[derive(Debug)]
 pub struct SurfaceInfo {
-    capabilities: vk::SurfaceCapabilitiesKHR,
+    pub capabilities: vk::SurfaceCapabilitiesKHR,
     formats: Vec<vk::SurfaceFormatKHR>,
     present_modes: Vec<vk::PresentModeKHR>,
 }
@@ -132,6 +135,46 @@ impl Surface {
             formats,
             present_modes,
         })
+    }
+
+    pub fn get_swapchain_info<'a>(
+        &self,
+        physical_device: &PhysicalDevice,
+        present_queue_family_indices: &'a [u32],
+        window_width: u32,
+        window_height: u32,
+        old_swapchain: Option<vk::SwapchainKHR>,
+    ) -> vk::SwapchainCreateInfoKHR<'a> {
+        let surface_format = physical_device.preferred_surface_format;
+        let swapchain_extent = physical_device.get_swapchain_extent(window_width, window_height);
+        let present_mode = physical_device.preferred_present_mode;
+
+        let mut swapchain_info = vk::SwapchainCreateInfoKHR::default()
+            .surface(self.handle)
+            .min_image_count(physical_device.min_swapchain_image_count)
+            .image_format(surface_format.format)
+            .image_color_space(surface_format.color_space)
+            .image_extent(swapchain_extent)
+            .image_array_layers(1)
+            .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT)
+            .pre_transform(physical_device.surface_info.capabilities.current_transform)
+            .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
+            .present_mode(present_mode)
+            .clipped(true);
+
+        if let Some(old_swapchain) = old_swapchain {
+            swapchain_info = swapchain_info.old_swapchain(old_swapchain);
+        }
+
+        if present_queue_family_indices[0] != present_queue_family_indices[1] {
+            swapchain_info = swapchain_info
+                .image_sharing_mode(vk::SharingMode::CONCURRENT)
+                .queue_family_indices(present_queue_family_indices);
+        } else {
+            swapchain_info = swapchain_info.image_sharing_mode(vk::SharingMode::EXCLUSIVE);
+        }
+
+        swapchain_info
     }
 }
 

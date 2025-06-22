@@ -1,10 +1,10 @@
 use std::{io::Cursor, sync::Arc};
 
-use ash::{util, vk};
+use ash::{khr::swapchain, util, vk};
 use thiserror::Error;
 
 use crate::{
-    instance::DeviceCreationError,
+    instance::{DeviceCreationError, Instance},
     physical_device::{
         MemoryTypeIndexNotFoundError, PhysicalDevice, get_required_physical_device_extensions,
         get_required_physical_device_features,
@@ -12,6 +12,7 @@ use crate::{
 };
 
 pub struct Device {
+    instance: Arc<Instance>,
     physical_device: Arc<PhysicalDevice>,
 
     handle: ash::Device,
@@ -62,6 +63,10 @@ pub enum AttachmentCreationError {
 pub struct RenderPassCreationError(String);
 
 #[derive(Debug, Error)]
+#[error("Failed to create framebuffer: {0}")]
+pub struct FramebufferCreationError(String);
+
+#[derive(Debug, Error)]
 pub enum ShaderModuleCreationError {
     #[error("Failed to read SPIR-V bytecode: {0}")]
     ReadSpv(String),
@@ -80,7 +85,10 @@ pub enum GraphicsPipelineCreationError {
 }
 
 impl Device {
-    pub fn new(physical_device: Arc<PhysicalDevice>) -> Result<Self, DeviceCreationError> {
+    pub fn new(
+        instance: Arc<Instance>,
+        physical_device: Arc<PhysicalDevice>,
+    ) -> Result<Self, DeviceCreationError> {
         let queue_infos = physical_device.get_queue_infos();
         let required_features = get_required_physical_device_features();
         let required_extensions = get_required_physical_device_extensions();
@@ -122,6 +130,7 @@ impl Device {
             .map(|index| unsafe { handle.get_device_queue(index, 0) });
 
         Ok(Self {
+            instance,
             physical_device,
             handle,
             graphics_queue,
@@ -130,6 +139,10 @@ impl Device {
             sparse_binding_queue,
             present_queue,
         })
+    }
+
+    pub fn create_swapchain_loader(&self) -> swapchain::Device {
+        self.instance.create_swapchain_loader(&self.handle)
     }
 
     pub fn wait_idle(&self) {
@@ -215,6 +228,12 @@ impl Device {
                 .create_image_view(&info, None)
                 .map_err(|e| ImageViewCreationError(e.to_string()))?
         })
+    }
+
+    pub fn destroy_image_view(&self, image_view: vk::ImageView) {
+        unsafe {
+            self.handle.destroy_image_view(image_view, None);
+        }
     }
 
     pub fn create_depth_attachment(
@@ -322,7 +341,7 @@ impl Device {
 
     pub fn get_swapchain_color_attachment_desc(&self) -> vk::AttachmentDescription2 {
         vk::AttachmentDescription2::default()
-            .format(self.physical_device.preferred_format.format)
+            .format(self.physical_device.preferred_surface_format.format)
             .samples(vk::SampleCountFlags::TYPE_1) // swapchain 은 1x MSAA
             .load_op(vk::AttachmentLoadOp::CLEAR) // 프레임 시작 시 항상 Clear
             .store_op(vk::AttachmentStoreOp::STORE) // 화면에 보여야 하므로 저장
@@ -369,6 +388,29 @@ impl Device {
             self.handle
                 .create_render_pass2(&create_info, None)
                 .map_err(|e| RenderPassCreationError(e.to_string()))
+        }
+    }
+
+    pub fn destroy_render_pass(&self, render_pass: vk::RenderPass) {
+        unsafe {
+            self.handle.destroy_render_pass(render_pass, None);
+        }
+    }
+
+    pub fn create_framebuffer(
+        &self,
+        framebuffer_info: vk::FramebufferCreateInfo,
+    ) -> Result<vk::Framebuffer, FramebufferCreationError> {
+        Ok(unsafe {
+            self.handle
+                .create_framebuffer(&framebuffer_info, None)
+                .map_err(|e| FramebufferCreationError(e.to_string()))?
+        })
+    }
+
+    pub fn destroy_framebuffer(&self, framebuffer: vk::Framebuffer) {
+        unsafe {
+            self.handle.destroy_framebuffer(framebuffer, None);
         }
     }
 

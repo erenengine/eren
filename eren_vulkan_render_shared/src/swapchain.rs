@@ -1,1 +1,128 @@
-pub struct Swapchain {}
+use std::sync::Arc;
+
+use crate::{
+    device::{Device, FramebufferCreationError, ImageViewCreationError},
+    physical_device::PhysicalDevice,
+    surface::Surface,
+};
+use ash::{khr::swapchain, vk};
+use thiserror::Error;
+
+pub struct Swapchain {
+    device: Arc<Device>,
+    window_width: u32,
+    window_height: u32,
+    loader: swapchain::Device,
+    handle: vk::SwapchainKHR,
+    image_views: Vec<vk::ImageView>,
+}
+
+#[derive(Debug, Error)]
+pub enum SwapchainInitializationError {
+    #[error("Failed to create swapchain: {0}")]
+    CreateSwapchain(String),
+
+    #[error("Failed to get swapchain images: {0}")]
+    GetSwapchainImages(String),
+
+    #[error("Failed to create image view: {0}")]
+    CreateImageView(#[from] ImageViewCreationError),
+}
+
+impl Swapchain {
+    pub fn new(
+        surface: &Surface,
+        physical_device: &PhysicalDevice,
+        device: Arc<Device>,
+        window_width: u32,
+        window_height: u32,
+        old_swapchain: Option<&Swapchain>,
+    ) -> Result<Self, SwapchainInitializationError> {
+        let present_queue_family_indices = [
+            physical_device
+                .queue_family_indices
+                .graphics_queue_family_index
+                .expect("Graphics queue family index not found"),
+            physical_device
+                .queue_family_indices
+                .present_queue_family_index
+                .expect("Present queue family index not found"),
+        ];
+
+        let swapchain_info = surface.get_swapchain_info(
+            physical_device,
+            &present_queue_family_indices,
+            window_width,
+            window_height,
+            old_swapchain.map(|swapchain| swapchain.handle),
+        );
+
+        let loader = device.create_swapchain_loader();
+
+        let handle = unsafe {
+            loader
+                .create_swapchain(&swapchain_info, None)
+                .map_err(|e| SwapchainInitializationError::CreateSwapchain(e.to_string()))?
+        };
+
+        let images = unsafe { loader.get_swapchain_images(handle) }
+            .map_err(|e| SwapchainInitializationError::GetSwapchainImages(e.to_string()))?;
+
+        let mut image_views = Vec::new();
+        for &image in &images {
+            image_views.push(device.create_image_view(
+                image,
+                physical_device.preferred_surface_format.format,
+                vk::ImageAspectFlags::COLOR,
+            )?);
+        }
+
+        Ok(Self {
+            device,
+            window_width,
+            window_height,
+            loader,
+            handle,
+            image_views,
+        })
+    }
+
+    pub fn create_framebuffers(
+        &self,
+        render_pass: vk::RenderPass,
+    ) -> Result<Vec<vk::Framebuffer>, FramebufferCreationError> {
+        let mut framebuffers = Vec::with_capacity(self.image_views.len());
+
+        for &image_view in self.image_views.iter() {
+            let attachments = [image_view];
+
+            let framebuffer_info = vk::FramebufferCreateInfo::default()
+                .render_pass(render_pass)
+                .attachments(&attachments)
+                .width(self.window_width)
+                .height(self.window_height)
+                .layers(1);
+
+            let framebuffer = self.device.create_framebuffer(framebuffer_info)?;
+            framebuffers.push(framebuffer);
+        }
+
+        Ok(framebuffers)
+    }
+}
+
+impl Drop for Swapchain {
+    fn drop(&mut self) {
+        log::debug!("Dropping swapchain");
+
+        self.device.wait_idle();
+
+        for &image_view in self.image_views.iter() {
+            self.device.destroy_image_view(image_view);
+        }
+
+        unsafe {
+            self.loader.destroy_swapchain(self.handle, None);
+        }
+    }
+}

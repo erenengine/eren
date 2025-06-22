@@ -1,6 +1,10 @@
 use std::{ffi::CString, sync::Arc};
 
-use ash::{ext::debug_utils, khr, vk};
+use ash::{
+    ext::debug_utils,
+    khr::{self, swapchain},
+    vk,
+};
 use thiserror::Error;
 use winit::{
     raw_window_handle::{HandleError, HasDisplayHandle, HasWindowHandle},
@@ -237,6 +241,10 @@ impl Instance {
                 .create_device(physical_device, &info, None)
                 .map_err(|e| DeviceCreationError(e.to_string()))
         }
+    }
+
+    pub fn create_swapchain_loader(&self, device: &ash::Device) -> swapchain::Device {
+        swapchain::Device::new(&self.handle, device)
     }
 }
 

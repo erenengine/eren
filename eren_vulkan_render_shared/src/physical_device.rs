@@ -277,9 +277,10 @@ pub struct PhysicalDevice {
     handle: vk::PhysicalDevice,
     pub queue_family_indices: QueueFamilyIndices,
 
-    surface_info: SurfaceInfo,
-    pub preferred_format: vk::SurfaceFormatKHR,
-    preferred_present_mode: vk::PresentModeKHR,
+    pub surface_info: SurfaceInfo,
+    pub min_swapchain_image_count: u32,
+    pub preferred_surface_format: vk::SurfaceFormatKHR,
+    pub preferred_present_mode: vk::PresentModeKHR,
 
     memory_properties: vk::PhysicalDeviceMemoryProperties,
 }
@@ -301,6 +302,14 @@ impl PhysicalDevice {
             let memory_properties =
                 instance.get_physical_device_memory_properties(candidate.physical_device);
 
+            let mut min_swapchain_image_count =
+                candidate.surface_info.capabilities.min_image_count + 1;
+            if candidate.surface_info.capabilities.max_image_count > 0
+                && min_swapchain_image_count > candidate.surface_info.capabilities.max_image_count
+            {
+                min_swapchain_image_count = candidate.surface_info.capabilities.max_image_count;
+            }
+
             let preferred_format = candidate.surface_info.select_preferred_surface_format();
             let preferred_present_mode = candidate.surface_info.select_preferred_present_mode();
 
@@ -310,7 +319,8 @@ impl PhysicalDevice {
                 queue_family_indices: candidate.queue_family_indices,
 
                 surface_info: candidate.surface_info,
-                preferred_format,
+                min_swapchain_image_count,
+                preferred_surface_format: preferred_format,
                 preferred_present_mode,
 
                 memory_properties,
@@ -363,5 +373,21 @@ impl PhysicalDevice {
             }
         }
         Err(MemoryTypeIndexNotFoundError)
+    }
+
+    pub fn get_swapchain_extent(&self, window_width: u32, window_height: u32) -> vk::Extent2D {
+        if self.surface_info.capabilities.current_extent.width != u32::MAX {
+            return self.surface_info.capabilities.current_extent;
+        }
+
+        let width = window_width.clamp(
+            self.surface_info.capabilities.min_image_extent.width,
+            self.surface_info.capabilities.max_image_extent.width,
+        );
+        let height = window_height.clamp(
+            self.surface_info.capabilities.min_image_extent.height,
+            self.surface_info.capabilities.max_image_extent.height,
+        );
+        vk::Extent2D { width, height }
     }
 }

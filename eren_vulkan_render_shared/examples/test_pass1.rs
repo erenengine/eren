@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use eren_vulkan_render_shared::{
     device::Device, instance::Instance, physical_device::PhysicalDevice, surface::Surface,
+    swapchain::Swapchain,
 };
 use eren_window::window::{WindowConfig, WindowEventHandler, WindowLifecycle};
 use winit::window::Window;
@@ -14,10 +15,10 @@ use crate::test_pass1::renderer::TestRenderer;
 
 struct TestWindowEventHandler {
     window: Arc<Window>,
-    _instance: Arc<Instance>,
-    _surface: Surface,
-    _physical_device: Arc<PhysicalDevice>,
-    _device: Arc<Device>,
+    surface: Surface,
+    physical_device: Arc<PhysicalDevice>,
+    device: Arc<Device>,
+    swapchain: Arc<Swapchain>,
     renderer: TestRenderer,
 }
 
@@ -28,23 +29,47 @@ impl WindowEventHandler for TestWindowEventHandler {
         let instance = Arc::new(Instance::new(window.clone()).unwrap());
         let surface = Surface::new(&instance).unwrap();
         let physical_device = Arc::new(PhysicalDevice::new(instance.clone(), &surface).unwrap());
-        let device = Arc::new(Device::new(physical_device.clone()).unwrap());
-        let renderer: TestRenderer = TestRenderer::new(device.clone()).unwrap();
+        let device = Arc::new(Device::new(instance.clone(), physical_device.clone()).unwrap());
+        let swapchain = Arc::new(
+            Swapchain::new(
+                &surface,
+                &physical_device,
+                device.clone(),
+                window.inner_size().width,
+                window.inner_size().height,
+                None,
+            )
+            .unwrap(),
+        );
+        let renderer: TestRenderer = TestRenderer::new(device.clone(), swapchain.clone()).unwrap();
 
         log::debug!("Renderer created");
 
         Self {
             window,
-            _instance: instance,
-            _surface: surface,
-            _physical_device: physical_device,
-            _device: device.clone(),
+            surface,
+            physical_device,
+            device,
+            swapchain,
             renderer,
         }
     }
 
     fn on_resized(&mut self, width: u32, height: u32) {
         log::debug!("Window resized: {}x{}", width, height);
+
+        let old_swapchain = self.swapchain.clone();
+        self.swapchain = Arc::new(
+            Swapchain::new(
+                &self.surface,
+                &self.physical_device,
+                self.device.clone(),
+                width,
+                height,
+                Some(&old_swapchain),
+            )
+            .unwrap(),
+        );
     }
 
     fn on_scale_factor_changed(&mut self, scale_factor: f64) {

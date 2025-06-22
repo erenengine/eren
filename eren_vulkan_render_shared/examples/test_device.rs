@@ -21,7 +21,7 @@ impl WindowEventHandler for TestWindowEventHandler {
         let instance = Arc::new(Instance::new(window.clone()).unwrap());
         let surface = Surface::new(&instance).unwrap();
         let physical_device = Arc::new(PhysicalDevice::new(instance.clone(), &surface).unwrap());
-        let device = Device::new(physical_device.clone()).unwrap();
+        let device = Device::new(instance.clone(), physical_device.clone()).unwrap();
 
         log::debug!("Device created");
 
