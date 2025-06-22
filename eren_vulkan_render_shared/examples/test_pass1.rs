@@ -6,11 +6,11 @@ use eren_vulkan_render_shared::{
 use eren_window::window::{WindowConfig, WindowEventHandler, WindowLifecycle};
 use winit::window::Window;
 
-mod test_render_pass {
+mod test_pass1 {
     pub mod renderer;
 }
 
-use crate::test_render_pass::renderer::TestRenderer;
+use crate::test_pass1::renderer::TestRenderer;
 
 struct TestWindowEventHandler {
     window: Arc<Window>,
@@ -29,7 +29,7 @@ impl WindowEventHandler for TestWindowEventHandler {
         let surface = Surface::new(&instance).unwrap();
         let physical_device = Arc::new(PhysicalDevice::new(instance.clone(), &surface).unwrap());
         let device = Arc::new(Device::new(physical_device.clone()).unwrap());
-        let renderer: TestRenderer = TestRenderer::new(device.clone());
+        let renderer: TestRenderer = TestRenderer::new(device.clone()).unwrap();
 
         log::debug!("Renderer created");
 
@@ -52,7 +52,7 @@ impl WindowEventHandler for TestWindowEventHandler {
     }
 
     fn on_redraw_requested(&mut self) {
-        log::debug!("Redraw requested");
+        //log::debug!("Redraw requested");
 
         self.renderer.render();
 

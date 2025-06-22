@@ -1,6 +1,7 @@
-use std::sync::Arc;
+use std::{io::Cursor, sync::Arc};
 
-use ash::vk;
+use ash::{util, vk};
+use thiserror::Error;
 
 use crate::{
     instance::DeviceCreationError,
@@ -20,6 +21,15 @@ pub struct Device {
     transfer_queue: Option<vk::Queue>,
     sparse_binding_queue: Option<vk::Queue>,
     present_queue: Option<vk::Queue>,
+}
+
+#[derive(Debug, Error)]
+pub enum ShaderModuleCreationError {
+    #[error("Failed to read SPIR-V bytecode: {0}")]
+    ReadSpv(String),
+
+    #[error("Failed to create shader module: {0}")]
+    CreateShaderModule(String),
 }
 
 impl Device {
@@ -73,6 +83,29 @@ impl Device {
             sparse_binding_queue,
             present_queue,
         })
+    }
+
+    pub fn create_shader_module(
+        &self,
+        code: &[u8],
+    ) -> Result<vk::ShaderModule, ShaderModuleCreationError> {
+        let mut cursor = Cursor::new(code);
+        let code = util::read_spv(&mut cursor)
+            .map_err(|e| ShaderModuleCreationError::ReadSpv(e.to_string()))?;
+
+        let create_info = vk::ShaderModuleCreateInfo::default().code(&code);
+
+        Ok(unsafe {
+            self.handle
+                .create_shader_module(&create_info, None)
+                .map_err(|e| ShaderModuleCreationError::CreateShaderModule(e.to_string()))?
+        })
+    }
+
+    pub fn destroy_shader_module(&self, module: vk::ShaderModule) {
+        unsafe {
+            self.handle.destroy_shader_module(module, None);
+        }
     }
 }
 

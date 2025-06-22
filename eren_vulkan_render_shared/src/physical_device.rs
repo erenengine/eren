@@ -187,7 +187,7 @@ fn pick_best_physical_device(
 
     let devices = instance.get_physical_devices()?;
 
-    log::debug!("Available physical devices: {:#?}", devices);
+    log::info!("Available physical devices: {:#?}", devices);
 
     for device in devices {
         // 필수 조건: 필수 기능과 확장이 지원되어야 함
@@ -282,7 +282,7 @@ impl PhysicalDevice {
     ) -> Result<Self, PhysicalDeviceInitializationError> {
         let best_candidate = pick_best_physical_device(&instance, surface)?;
 
-        log::debug!("Best physical device: {:#?}", best_candidate);
+        log::info!("Best physical device: {:#?}", best_candidate);
 
         if let Some(candidate) = best_candidate {
             Ok(Self {
