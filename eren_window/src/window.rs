@@ -42,6 +42,7 @@ pub struct WindowConfig {
 
 pub struct WindowLifecycle<E: WindowEventHandler + 'static> {
     config: WindowConfig,
+    window: Option<Arc<Window>>,
     event_handler: Option<E>,
 
     #[cfg(target_arch = "wasm32")]
@@ -52,6 +53,7 @@ impl<E: WindowEventHandler> WindowLifecycle<E> {
     pub fn new(config: WindowConfig) -> Self {
         Self {
             config,
+            window: None,
             event_handler: None,
 
             #[cfg(target_arch = "wasm32")]
@@ -80,6 +82,33 @@ impl<E: WindowEventHandler> WindowLifecycle<E> {
 
         event_loop.spawn_app(manager);
         Ok(())
+    }
+
+    fn create_event_handler(&mut self) {
+        if let Some(window) = &self.window {
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                // 웹 환경이 아니라면 pollster를 사용하여
+                // future를 동기적으로 기다릴 수 있습니다
+                self.event_handler = Some(pollster::block_on(E::new(window.clone())));
+
+                window.request_redraw();
+            }
+
+            #[cfg(target_arch = "wasm32")]
+            {
+                // future를 비동기적으로 실행하고
+                // proxy를 사용해 결과를 이벤트 루프로 보냅니다
+                if let Some(proxy) = self.proxy.take() {
+                    let cloned_window = window.clone();
+                    wasm_bindgen_futures::spawn_local(async move {
+                        let event_handler = E::new(cloned_window.clone()).await;
+                        //cloned_window.request_redraw();
+                        assert!(proxy.send_event(event_handler).is_ok());
+                    });
+                }
+            }
+        }
     }
 }
 
@@ -134,29 +163,11 @@ impl<E: WindowEventHandler> ApplicationHandler<E> for WindowLifecycle<E> {
             }
         };
 
-        let window = Arc::new(raw_window);
+        let window_size = raw_window.inner_size();
+        self.window = Some(Arc::new(raw_window));
 
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            // 웹 환경이 아니라면 pollster를 사용하여
-            // future를 동기적으로 기다릴 수 있습니다
-            self.event_handler = Some(pollster::block_on(E::new(window.clone())));
-
-            window.request_redraw();
-        }
-
-        #[cfg(target_arch = "wasm32")]
-        {
-            // future를 비동기적으로 실행하고
-            // proxy를 사용해 결과를 이벤트 루프로 보냅니다
-            if let Some(proxy) = self.proxy.take() {
-                let cloned_window = window.clone();
-                wasm_bindgen_futures::spawn_local(async move {
-                    let event_handler = E::new(cloned_window.clone()).await;
-                    //cloned_window.request_redraw();
-                    assert!(proxy.send_event(event_handler).is_ok());
-                });
-            }
+        if window_size.width > 0 && window_size.height > 0 {
+            self.create_event_handler();
         }
     }
 
@@ -167,24 +178,27 @@ impl<E: WindowEventHandler> ApplicationHandler<E> for WindowLifecycle<E> {
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
-        let event_handler = match &mut self.event_handler {
-            Some(event_handler) => event_handler,
-            None => return,
-        };
-
         match event {
             WindowEvent::Resized(size) => {
-                event_handler.on_resized(size.width, size.height);
+                if let Some(event_handler) = &mut self.event_handler {
+                    event_handler.on_resized(size.width, size.height);
+                } else {
+                    self.create_event_handler();
+                }
             }
             WindowEvent::CloseRequested => {
                 self.event_handler = None;
                 event_loop.exit();
             }
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                event_handler.on_scale_factor_changed(scale_factor);
+                if let Some(event_handler) = &mut self.event_handler {
+                    event_handler.on_scale_factor_changed(scale_factor);
+                }
             }
             WindowEvent::RedrawRequested => {
-                event_handler.on_redraw_requested();
+                if let Some(event_handler) = &mut self.event_handler {
+                    event_handler.on_redraw_requested();
+                }
             }
             _ => {}
         }

@@ -119,6 +119,10 @@ impl WindowEventHandler for TestWindowEventHandler {
 
     fn on_scale_factor_changed(&mut self, scale_factor: f64) {
         log::debug!("Scale factor changed: {}", scale_factor);
+
+        //TODO: 테스트해보기
+        /*let window_size = self.window.inner_size();
+        self.recreate_swapchain(window_size.width, window_size.height);*/
     }
 
     fn on_redraw_requested(&mut self) {
