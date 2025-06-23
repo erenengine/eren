@@ -94,6 +94,7 @@ impl TestRenderer {
         )?;
 
         if is_suboptimal {
+            log::debug!("Swapchain is suboptimal when acquire next image");
             return Ok(true);
         }
 
@@ -118,6 +119,10 @@ impl TestRenderer {
         let is_suboptimal = self
             .device
             .present(&self.swapchain, image_idx, img.render_finished)?;
+
+        if is_suboptimal {
+            log::debug!("Swapchain is suboptimal when present");
+        }
 
         Ok(is_suboptimal)
     }

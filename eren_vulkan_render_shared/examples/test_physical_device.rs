@@ -9,7 +9,7 @@ use winit::window::Window;
 struct TestWindowEventHandler {
     window: Arc<Window>,
     _instance: Arc<Instance>,
-    _surface: Surface,
+    _surface: Arc<Surface>,
     _physical_device: PhysicalDevice,
 }
 
@@ -18,8 +18,8 @@ impl WindowEventHandler for TestWindowEventHandler {
         log::debug!("Window created");
 
         let instance = Arc::new(Instance::new(window.clone()).unwrap());
-        let surface = Surface::new(&instance).unwrap();
-        let physical_device = PhysicalDevice::new(instance.clone(), &surface).unwrap();
+        let surface = Arc::new(Surface::new(instance.clone()).unwrap());
+        let physical_device = PhysicalDevice::new(instance.clone(), surface.clone()).unwrap();
 
         log::debug!("Physical device created");
 

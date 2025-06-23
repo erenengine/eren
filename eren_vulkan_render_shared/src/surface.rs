@@ -69,6 +69,9 @@ impl SurfaceInfo {
 }
 
 pub struct Surface {
+    // 생명주기 상 서피스가 인스턴스보다 먼저 해제되어야 함
+    _instance: Arc<Instance>,
+
     loader: Arc<khr::surface::Instance>,
     handle: vk::SurfaceKHR,
 }
@@ -86,10 +89,14 @@ pub enum SurfaceInfoQueryError {
 }
 
 impl Surface {
-    pub fn new(instance: &Instance) -> Result<Self, SurfaceCreationError> {
+    pub fn new(instance: Arc<Instance>) -> Result<Self, SurfaceCreationError> {
         let loader = instance.get_surface_loader();
         let handle = instance.create_surface()?;
-        Ok(Self { loader, handle })
+        Ok(Self {
+            _instance: instance,
+            loader,
+            handle,
+        })
     }
 
     pub fn can_queue_family_present_to_surface(
@@ -144,9 +151,10 @@ impl Surface {
         window_width: u32,
         window_height: u32,
         old_swapchain: Option<vk::SwapchainKHR>,
-    ) -> vk::SwapchainCreateInfoKHR<'a> {
+    ) -> Result<vk::SwapchainCreateInfoKHR<'a>, SurfaceInfoQueryError> {
         let surface_format = physical_device.preferred_surface_format;
-        let swapchain_extent = physical_device.get_swapchain_extent(window_width, window_height);
+        let (swapchain_extent, transform) =
+            physical_device.query_extent_and_transform(window_width, window_height)?;
         let present_mode = physical_device.preferred_present_mode;
 
         let mut swapchain_info = vk::SwapchainCreateInfoKHR::default()
@@ -157,7 +165,7 @@ impl Surface {
             .image_extent(swapchain_extent)
             .image_array_layers(1)
             .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT)
-            .pre_transform(physical_device.surface_info.capabilities.current_transform)
+            .pre_transform(transform)
             .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
             .present_mode(present_mode)
             .clipped(true);
@@ -174,7 +182,7 @@ impl Surface {
             swapchain_info = swapchain_info.image_sharing_mode(vk::SharingMode::EXCLUSIVE);
         }
 
-        swapchain_info
+        Ok(swapchain_info)
     }
 }
 

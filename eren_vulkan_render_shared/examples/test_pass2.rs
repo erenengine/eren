@@ -15,7 +15,7 @@ use crate::test_pass2::renderer::TestRenderer;
 struct TestWindowEventHandler {
     window: Arc<Window>,
     _instance: Arc<Instance>,
-    _surface: Surface,
+    _surface: Arc<Surface>,
     _physical_device: Arc<PhysicalDevice>,
     _device: Arc<Device>,
     renderer: TestRenderer,
@@ -26,8 +26,9 @@ impl WindowEventHandler for TestWindowEventHandler {
         log::debug!("Window created");
 
         let instance = Arc::new(Instance::new(window.clone()).unwrap());
-        let surface = Surface::new(&instance).unwrap();
-        let physical_device = Arc::new(PhysicalDevice::new(instance.clone(), &surface).unwrap());
+        let surface = Arc::new(Surface::new(instance.clone()).unwrap());
+        let physical_device =
+            Arc::new(PhysicalDevice::new(instance.clone(), surface.clone()).unwrap());
         let device = Arc::new(Device::new(instance.clone(), physical_device.clone()).unwrap());
         let renderer: TestRenderer = TestRenderer::new(device.clone());
 

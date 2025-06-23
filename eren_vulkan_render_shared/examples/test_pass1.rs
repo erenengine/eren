@@ -24,39 +24,79 @@ struct TestWindowEventHandler {
     renderer: TestRenderer,
 }
 
+fn create_swapchain(
+    surface: Arc<Surface>,
+    physical_device: Arc<PhysicalDevice>,
+    device: Arc<Device>,
+    old_swapchain: Option<&Swapchain>,
+    width: u32,
+    height: u32,
+) -> (Arc<Swapchain>, Arc<CommandPool>, TestRenderer) {
+    // 화면 크기 변경 시 swapchain 재생성
+    let swapchain = Arc::new(
+        Swapchain::new(
+            surface,
+            &physical_device,
+            device.clone(),
+            width,
+            height,
+            old_swapchain,
+        )
+        .unwrap(),
+    );
+
+    // command pool과 renderer 재생성
+    let command_pool = Arc::new(CommandPool::new(device.clone()).unwrap());
+
+    let renderer = TestRenderer::new(
+        device,
+        swapchain.clone(),
+        &command_pool,
+        vk::Rect2D {
+            offset: vk::Offset2D::default(),
+            extent: vk::Extent2D { width, height },
+        },
+    )
+    .unwrap();
+
+    (swapchain, command_pool, renderer)
+}
+
+impl TestWindowEventHandler {
+    fn recreate_swapchain(&mut self, width: u32, height: u32) {
+        let (swapchain, command_pool, renderer) = create_swapchain(
+            self.surface.clone(),
+            self.physical_device.clone(),
+            self.device.clone(),
+            Some(&self.swapchain),
+            width,
+            height,
+        );
+
+        self.swapchain = swapchain;
+        self.command_pool = command_pool;
+        self.renderer = renderer;
+    }
+}
+
 impl WindowEventHandler for TestWindowEventHandler {
     async fn new(window: Arc<Window>) -> Self {
         log::debug!("Window created");
 
         let instance = Arc::new(Instance::new(window.clone()).unwrap());
-        let surface = Arc::new(Surface::new(&instance).unwrap());
-        let physical_device = Arc::new(PhysicalDevice::new(instance.clone(), &surface).unwrap());
+        let surface = Arc::new(Surface::new(instance.clone()).unwrap());
+        let physical_device =
+            Arc::new(PhysicalDevice::new(instance.clone(), surface.clone()).unwrap());
         let device = Arc::new(Device::new(instance.clone(), physical_device.clone()).unwrap());
-        let swapchain = Arc::new(
-            Swapchain::new(
-                surface.clone(),
-                &physical_device,
-                device.clone(),
-                window.inner_size().width,
-                window.inner_size().height,
-                None,
-            )
-            .unwrap(),
-        );
-        let command_pool = Arc::new(CommandPool::new(device.clone()).unwrap());
-        let renderer: TestRenderer = TestRenderer::new(
+
+        let (swapchain, command_pool, renderer) = create_swapchain(
+            surface.clone(),
+            physical_device.clone(),
             device.clone(),
-            swapchain.clone(),
-            &command_pool,
-            vk::Rect2D {
-                offset: vk::Offset2D::default(),
-                extent: vk::Extent2D {
-                    width: window.inner_size().width,
-                    height: window.inner_size().height,
-                },
-            },
-        )
-        .unwrap();
+            None,
+            window.inner_size().width,
+            window.inner_size().height,
+        );
 
         log::debug!("Renderer created");
 
@@ -73,34 +113,7 @@ impl WindowEventHandler for TestWindowEventHandler {
 
     fn on_resized(&mut self, width: u32, height: u32) {
         log::debug!("Window resized: {}x{}", width, height);
-
-        // 화면 크기 변경 시 swapchain 재생성
-        let old_swapchain = self.swapchain.clone();
-        self.swapchain = Arc::new(
-            Swapchain::new(
-                self.surface.clone(),
-                &self.physical_device,
-                self.device.clone(),
-                width,
-                height,
-                Some(&old_swapchain),
-            )
-            .unwrap(),
-        );
-
-        // command pool과 renderer 재생성
-        self.command_pool = Arc::new(CommandPool::new(self.device.clone()).unwrap());
-
-        self.renderer = TestRenderer::new(
-            self.device.clone(),
-            self.swapchain.clone(),
-            &self.command_pool,
-            vk::Rect2D {
-                offset: vk::Offset2D::default(),
-                extent: vk::Extent2D { width, height },
-            },
-        )
-        .unwrap();
+        self.recreate_swapchain(width, height);
     }
 
     fn on_scale_factor_changed(&mut self, scale_factor: f64) {
@@ -113,7 +126,10 @@ impl WindowEventHandler for TestWindowEventHandler {
         let is_suboptimal = self.renderer.render().unwrap();
 
         if is_suboptimal {
-            //TODO: handle suboptimal
+            self.recreate_swapchain(
+                self.window.inner_size().width,
+                self.window.inner_size().height,
+            );
         }
 
         self.window.request_redraw();

@@ -9,7 +9,7 @@ use thiserror::Error;
 
 use crate::{
     instance::{DeviceCreationError, Instance, PhysicalDevicesEnumerationError},
-    surface::{Surface, SurfaceInfo},
+    surface::{Surface, SurfaceInfo, SurfaceInfoQueryError},
 };
 
 pub fn get_required_physical_device_features() -> vk::PhysicalDeviceFeatures {
@@ -274,10 +274,11 @@ pub enum PhysicalDeviceInitializationError {
 
 pub struct PhysicalDevice {
     instance: Arc<Instance>,
+    surface: Arc<Surface>,
+
     handle: vk::PhysicalDevice,
     pub queue_family_indices: QueueFamilyIndices,
 
-    pub surface_info: SurfaceInfo,
     pub min_swapchain_image_count: u32,
     pub preferred_surface_format: vk::SurfaceFormatKHR,
     pub preferred_present_mode: vk::PresentModeKHR,
@@ -292,9 +293,9 @@ pub struct MemoryTypeIndexNotFoundError;
 impl PhysicalDevice {
     pub fn new(
         instance: Arc<Instance>,
-        surface: &Surface,
+        surface: Arc<Surface>,
     ) -> Result<Self, PhysicalDeviceInitializationError> {
-        let best_candidate = pick_best_physical_device(&instance, surface)?;
+        let best_candidate = pick_best_physical_device(&instance, &surface)?;
 
         log::info!("Best physical device: {:#?}", best_candidate);
 
@@ -315,10 +316,11 @@ impl PhysicalDevice {
 
             Ok(Self {
                 instance,
+                surface,
+
                 handle: candidate.physical_device,
                 queue_family_indices: candidate.queue_family_indices,
 
-                surface_info: candidate.surface_info,
                 min_swapchain_image_count,
                 preferred_surface_format: preferred_format,
                 preferred_present_mode,
@@ -375,19 +377,53 @@ impl PhysicalDevice {
         Err(MemoryTypeIndexNotFoundError)
     }
 
-    pub fn get_swapchain_extent(&self, window_width: u32, window_height: u32) -> vk::Extent2D {
-        if self.surface_info.capabilities.current_extent.width != u32::MAX {
-            return self.surface_info.capabilities.current_extent;
+    pub fn query_extent_and_transform(
+        &self,
+        window_width: u32,
+        window_height: u32,
+    ) -> Result<(vk::Extent2D, vk::SurfaceTransformFlagsKHR), SurfaceInfoQueryError> {
+        let surface_info = self.surface.query_surface_info(self.handle)?;
+
+        // 필수 조건: swapchain 생성 가능해야 함
+        if !surface_info.can_create_swapchain() {
+            return Err(SurfaceInfoQueryError::Capabilities(
+                "Swapchain not supported".to_string(),
+            ));
+        }
+
+        log::info!(
+            "Current extent: {:#?}",
+            surface_info.capabilities.current_extent
+        );
+        log::info!(
+            "Min extent: {:#?}",
+            surface_info.capabilities.min_image_extent
+        );
+        log::info!(
+            "Max extent: {:#?}",
+            surface_info.capabilities.max_image_extent
+        );
+        log::info!("Window size: {}x{}", window_width, window_height);
+
+        if surface_info.capabilities.current_extent.width != u32::MAX {
+            return Ok((
+                surface_info.capabilities.current_extent,
+                surface_info.capabilities.current_transform,
+            ));
         }
 
         let width = window_width.clamp(
-            self.surface_info.capabilities.min_image_extent.width,
-            self.surface_info.capabilities.max_image_extent.width,
+            surface_info.capabilities.min_image_extent.width,
+            surface_info.capabilities.max_image_extent.width,
         );
         let height = window_height.clamp(
-            self.surface_info.capabilities.min_image_extent.height,
-            self.surface_info.capabilities.max_image_extent.height,
+            surface_info.capabilities.min_image_extent.height,
+            surface_info.capabilities.max_image_extent.height,
         );
-        vk::Extent2D { width, height }
+
+        Ok((
+            vk::Extent2D { width, height },
+            surface_info.capabilities.current_transform,
+        ))
     }
 }

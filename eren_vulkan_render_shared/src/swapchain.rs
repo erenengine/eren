@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     device::{Device, FramebufferCreationError, ImageViewCreationError},
     physical_device::PhysicalDevice,
-    surface::Surface,
+    surface::{Surface, SurfaceInfoQueryError},
 };
 use ash::{khr::swapchain, vk};
 use thiserror::Error;
@@ -24,6 +24,9 @@ pub struct Swapchain {
 
 #[derive(Debug, Error)]
 pub enum SwapchainInitializationError {
+    #[error("Failed to query surface info: {0}")]
+    QuerySurfaceInfo(#[from] SurfaceInfoQueryError),
+
     #[error("Failed to create swapchain: {0}")]
     CreateSwapchain(String),
 
@@ -68,7 +71,7 @@ impl Swapchain {
             window_width,
             window_height,
             old_swapchain.map(|swapchain| swapchain.handle),
-        );
+        )?;
 
         let loader = device.create_swapchain_loader();
 
