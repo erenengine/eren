@@ -1,10 +1,7 @@
 use std::sync::Arc;
 
-use thiserror::Error;
 use wgpu::util::new_instance_with_webgpu_detection;
 use winit::window::Window;
-
-use crate::surface::Surface;
 
 pub struct Instance {
     window: Arc<Window>,
@@ -13,8 +10,12 @@ pub struct Instance {
 
 impl Instance {
     pub async fn new(window: Arc<Window>) -> Self {
-        //let handle = new_instance_with_webgpu_detection(&wgpu::InstanceDescriptor::default()).await;
-        let handle = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
+        let instance_desc = wgpu::InstanceDescriptor {
+            //backends: wgpu::Backends::GL, // 오직 WebGL만 대상으로 함
+            ..Default::default()
+        };
+
+        let handle = new_instance_with_webgpu_detection(&instance_desc).await;
         Self { window, handle }
     }
 

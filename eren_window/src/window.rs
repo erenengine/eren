@@ -103,7 +103,7 @@ impl<E: WindowEventHandler> WindowLifecycle<E> {
                     let cloned_window = window.clone();
                     wasm_bindgen_futures::spawn_local(async move {
                         let event_handler = E::new(cloned_window.clone()).await;
-                        //cloned_window.request_redraw();
+                        cloned_window.request_redraw();
                         assert!(proxy.send_event(event_handler).is_ok());
                     });
                 }
