@@ -22,7 +22,7 @@ impl TestRenderer {
             .create_view(&wgpu::TextureViewDescriptor::default());
 
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Render Encoder"),
+            label: Some("Test Render Encoder"),
         });
 
         self.render_pass.record_commands(&view, &mut encoder);
