@@ -22,9 +22,9 @@ pub fn init_logger() {
 struct TestWindowEventHandler<'a> {
     window: Arc<Window>,
     _instance: Instance,
-    _surface: Surface<'a>,
+    surface: Surface<'a>,
     _adapter: Adapter,
-    _device: Device,
+    device: Device,
 }
 
 impl<'a> WindowEventHandler for TestWindowEventHandler<'a> {
@@ -36,27 +36,47 @@ impl<'a> WindowEventHandler for TestWindowEventHandler<'a> {
         let adapter = Adapter::new(&instance, &surface).await.unwrap();
 
         let window_size = window.inner_size();
-        let device = Device::new(&adapter, &surface, window_size.width, window_size.height)
-            .await
-            .unwrap();
+        let scale_factor = window.scale_factor();
+        let device = Device::new(
+            &adapter,
+            &surface,
+            window_size.width / scale_factor as u32,
+            window_size.height / scale_factor as u32,
+        )
+        .await
+        .unwrap();
 
         log::debug!("Device created");
 
         Self {
             window,
             _instance: instance,
-            _surface: surface,
+            surface,
             _adapter: adapter,
-            _device: device,
+            device,
         }
     }
 
     fn on_resized(&mut self, width: u32, height: u32) {
         log::debug!("Window resized: {}x{}", width, height);
+
+        let scale_factor = self.window.scale_factor();
+        self.device.resize_surface(
+            &self.surface,
+            width / scale_factor as u32,
+            height / scale_factor as u32,
+        );
     }
 
     fn on_scale_factor_changed(&mut self, scale_factor: f64) {
         log::debug!("Scale factor changed: {}", scale_factor);
+
+        let window_size = self.window.inner_size();
+        self.device.resize_surface(
+            &self.surface,
+            window_size.width / scale_factor as u32,
+            window_size.height / scale_factor as u32,
+        );
     }
 
     fn on_redraw_requested(&mut self) {

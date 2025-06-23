@@ -1,7 +1,7 @@
 ```
-cargo run --example test_instance
-cargo run --example test_device
-cargo run --example test_pass1
+RUST_LOG=debug cargo run --example test_instance
+RUST_LOG=debug cargo run --example test_device
+RUST_LOG=debug cargo run --example test_pass1
 ```
 
 ```
