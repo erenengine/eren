@@ -13,4 +13,16 @@ impl<'window> Surface<'window> {
     pub fn get_compatible_surface(&self) -> &wgpu::Surface {
         &self.handle
     }
+
+    pub fn get_capabilities(&self, adapter: &wgpu::Adapter) -> wgpu::SurfaceCapabilities {
+        self.handle.get_capabilities(adapter)
+    }
+
+    pub fn configure(&self, device: &wgpu::Device, config: &wgpu::SurfaceConfiguration) {
+        self.handle.configure(device, config);
+    }
+
+    pub fn get_current_texture(&self) -> Result<wgpu::SurfaceTexture, wgpu::SurfaceError> {
+        self.handle.get_current_texture()
+    }
 }

@@ -264,12 +264,65 @@ fn pick_best_physical_device(
 }
 
 #[derive(Debug, Error)]
+#[error("Failed to find supported format: {0}")]
+pub struct FindSupportedFormatError(String);
+
+fn find_supported_format(
+    instance: &Instance,
+    physical_device: vk::PhysicalDevice,
+    candidates: &[vk::Format],
+    tiling: vk::ImageTiling,
+    features: vk::FormatFeatureFlags,
+) -> Result<vk::Format, FindSupportedFormatError> {
+    Ok(candidates
+        .iter()
+        .cloned()
+        .find(|format| {
+            let props = instance.get_physical_device_format_properties(physical_device, *format);
+            if tiling == vk::ImageTiling::LINEAR {
+                props.linear_tiling_features.contains(features)
+            } else {
+                // tiling == vk::ImageTiling::OPTIMAL
+                props.optimal_tiling_features.contains(features)
+            }
+        })
+        .ok_or(FindSupportedFormatError(
+            "Failed to find supported format".to_string(),
+        ))?)
+}
+
+fn find_depth_format(
+    instance: &Instance,
+    physical_device: vk::PhysicalDevice,
+) -> Result<vk::Format, FindSupportedFormatError> {
+    find_supported_format(
+        instance,
+        physical_device,
+        &[
+            vk::Format::D32_SFLOAT,
+            vk::Format::D32_SFLOAT_S8_UINT,
+            vk::Format::D24_UNORM_S8_UINT,
+        ],
+        vk::ImageTiling::OPTIMAL,
+        vk::FormatFeatureFlags::DEPTH_STENCIL_ATTACHMENT,
+    )
+}
+
+// 스텐실을 지원해야하면 반드시 확인해야 함
+fn has_stencil_component(format: vk::Format) -> bool {
+    format == vk::Format::D32_SFLOAT_S8_UINT || format == vk::Format::D24_UNORM_S8_UINT
+}
+
+#[derive(Debug, Error)]
 pub enum PhysicalDeviceInitializationError {
     #[error("Physical device initialization error: {0}")]
     PhysicalDevicesEnumerationError(#[from] PhysicalDevicesEnumerationError),
 
     #[error("No compatible physical device found")]
     NoCompatiblePhysicalDevice,
+
+    #[error("Failed to find supported format: {0}")]
+    FindSupportedFormatError(#[from] FindSupportedFormatError),
 }
 
 pub struct PhysicalDevice {
@@ -282,6 +335,7 @@ pub struct PhysicalDevice {
     pub min_swapchain_image_count: u32,
     pub preferred_surface_format: vk::SurfaceFormatKHR,
     pub preferred_present_mode: vk::PresentModeKHR,
+    pub depth_format: vk::Format,
 
     memory_properties: vk::PhysicalDeviceMemoryProperties,
 }
@@ -313,6 +367,7 @@ impl PhysicalDevice {
 
             let preferred_format = candidate.surface_info.select_preferred_surface_format();
             let preferred_present_mode = candidate.surface_info.select_preferred_present_mode();
+            let depth_format = find_depth_format(&instance, candidate.physical_device)?;
 
             Ok(Self {
                 instance,
@@ -324,6 +379,7 @@ impl PhysicalDevice {
                 min_swapchain_image_count,
                 preferred_surface_format: preferred_format,
                 preferred_present_mode,
+                depth_format,
 
                 memory_properties,
             })

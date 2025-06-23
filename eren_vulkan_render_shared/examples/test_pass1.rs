@@ -89,13 +89,14 @@ impl WindowEventHandler for TestWindowEventHandler {
             Arc::new(PhysicalDevice::new(instance.clone(), surface.clone()).unwrap());
         let device = Arc::new(Device::new(instance.clone(), physical_device.clone()).unwrap());
 
+        let window_size = window.inner_size();
         let (swapchain, command_pool, renderer) = create_swapchain(
             surface.clone(),
             physical_device.clone(),
             device.clone(),
             None,
-            window.inner_size().width,
-            window.inner_size().height,
+            window_size.width,
+            window_size.height,
         );
 
         log::debug!("Renderer created");
@@ -126,10 +127,8 @@ impl WindowEventHandler for TestWindowEventHandler {
         let is_suboptimal = self.renderer.render().unwrap();
 
         if is_suboptimal {
-            self.recreate_swapchain(
-                self.window.inner_size().width,
-                self.window.inner_size().height,
-            );
+            let window_size = self.window.inner_size();
+            self.recreate_swapchain(window_size.width, window_size.height);
         }
 
         self.window.request_redraw();

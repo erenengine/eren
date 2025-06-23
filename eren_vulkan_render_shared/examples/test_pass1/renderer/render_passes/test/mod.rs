@@ -103,6 +103,7 @@ impl TestRenderPass {
         );
 
         self.subpass.record_commands(command_buffer);
+        //self.device.next_subpass(command_buffer); 다음 subpass로 넘어가려면 필요
 
         self.device.end_render_pass(command_buffer);
     }

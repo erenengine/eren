@@ -762,6 +762,16 @@ impl Device {
         }
     }
 
+    pub fn next_subpass(&self, command_buffer: vk::CommandBuffer) {
+        let subpass_begin_info =
+            vk::SubpassBeginInfo::default().contents(vk::SubpassContents::INLINE);
+        let subpass_end_info = vk::SubpassEndInfo::default();
+        unsafe {
+            self.handle
+                .cmd_next_subpass2(command_buffer, &subpass_begin_info, &subpass_end_info);
+        }
+    }
+
     pub fn end_render_pass(&self, command_buffer: vk::CommandBuffer) {
         unsafe {
             self.handle

@@ -4,6 +4,12 @@ use eren_render_shared::{adapter::Adapter, device::Device, instance::Instance, s
 use eren_window::window::{WindowConfig, WindowEventHandler, WindowLifecycle};
 use winit::window::Window;
 
+mod test_pass1 {
+    pub mod renderer;
+}
+
+use crate::test_pass1::renderer::TestRenderer;
+
 pub fn init_logger() {
     #[cfg(target_arch = "wasm32")]
     {
@@ -22,9 +28,10 @@ pub fn init_logger() {
 struct TestWindowEventHandler<'a> {
     window: Arc<Window>,
     _instance: Instance,
-    _surface: Surface<'a>,
+    surface: Surface<'a>,
     _adapter: Adapter,
-    _device: Device,
+    device: Device,
+    renderer: TestRenderer,
 }
 
 impl<'a> WindowEventHandler for TestWindowEventHandler<'a> {
@@ -40,19 +47,24 @@ impl<'a> WindowEventHandler for TestWindowEventHandler<'a> {
             .await
             .unwrap();
 
-        log::debug!("Device created");
+        let renderer = TestRenderer::new(&device);
+
+        log::debug!("Renderer created");
 
         Self {
             window,
             _instance: instance,
-            _surface: surface,
+            surface,
             _adapter: adapter,
-            _device: device,
+            device,
+            renderer,
         }
     }
 
     fn on_resized(&mut self, width: u32, height: u32) {
         log::debug!("Window resized: {}x{}", width, height);
+
+        self.device.resize_surface(&self.surface, width, height);
     }
 
     fn on_scale_factor_changed(&mut self, scale_factor: f64) {
@@ -61,6 +73,8 @@ impl<'a> WindowEventHandler for TestWindowEventHandler<'a> {
 
     fn on_redraw_requested(&mut self) {
         // log::debug!("Redraw requested");
+
+        self.renderer.render(&self.surface, &self.device).unwrap();
 
         self.window.request_redraw();
     }

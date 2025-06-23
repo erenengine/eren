@@ -231,6 +231,17 @@ impl Instance {
         }
     }
 
+    pub fn get_physical_device_format_properties(
+        &self,
+        physical_device: vk::PhysicalDevice,
+        format: vk::Format,
+    ) -> vk::FormatProperties {
+        unsafe {
+            self.handle
+                .get_physical_device_format_properties(physical_device, format)
+        }
+    }
+
     pub fn create_device(
         &self,
         physical_device: vk::PhysicalDevice,
