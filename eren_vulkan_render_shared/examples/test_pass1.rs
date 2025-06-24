@@ -19,8 +19,8 @@ struct TestWindowEventHandler {
     surface: Arc<Surface>,
     physical_device: Arc<PhysicalDevice>,
     device: Arc<Device>,
-    swapchain: Arc<Swapchain>,
     command_pool: Arc<CommandPool>,
+    swapchain: Arc<Swapchain>,
     renderer: TestRenderer,
 }
 
@@ -28,10 +28,11 @@ fn create_swapchain(
     surface: Arc<Surface>,
     physical_device: Arc<PhysicalDevice>,
     device: Arc<Device>,
+    command_pool: Arc<CommandPool>,
     old_swapchain: Option<&Swapchain>,
     width: u32,
     height: u32,
-) -> (Arc<Swapchain>, Arc<CommandPool>, TestRenderer) {
+) -> (Arc<Swapchain>, TestRenderer) {
     // 화면 크기 변경 시 swapchain 재생성
     let swapchain = Arc::new(
         Swapchain::new(
@@ -45,8 +46,7 @@ fn create_swapchain(
         .unwrap(),
     );
 
-    // command pool과 renderer 재생성
-    let command_pool = Arc::new(CommandPool::new(device.clone()).unwrap());
+    // renderer 재생성
 
     let renderer = TestRenderer::new(
         device,
@@ -59,22 +59,22 @@ fn create_swapchain(
     )
     .unwrap();
 
-    (swapchain, command_pool, renderer)
+    (swapchain, renderer)
 }
 
 impl TestWindowEventHandler {
     fn recreate_swapchain(&mut self, width: u32, height: u32) {
-        let (swapchain, command_pool, renderer) = create_swapchain(
+        let (swapchain, renderer) = create_swapchain(
             self.surface.clone(),
             self.physical_device.clone(),
             self.device.clone(),
+            self.command_pool.clone(),
             Some(&self.swapchain),
             width,
             height,
         );
 
         self.swapchain = swapchain;
-        self.command_pool = command_pool;
         self.renderer = renderer;
     }
 }
@@ -88,12 +88,14 @@ impl WindowEventHandler for TestWindowEventHandler {
         let physical_device =
             Arc::new(PhysicalDevice::new(instance.clone(), surface.clone()).unwrap());
         let device = Arc::new(Device::new(instance.clone(), physical_device.clone()).unwrap());
+        let command_pool = Arc::new(CommandPool::new(device.clone()).unwrap());
 
         let window_size = window.inner_size();
-        let (swapchain, command_pool, renderer) = create_swapchain(
+        let (swapchain, renderer) = create_swapchain(
             surface.clone(),
             physical_device.clone(),
             device.clone(),
+            command_pool.clone(),
             None,
             window_size.width,
             window_size.height,
