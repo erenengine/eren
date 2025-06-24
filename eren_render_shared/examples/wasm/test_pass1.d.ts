@@ -15,17 +15,17 @@ export interface InitOutput {
   readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
   readonly __wbindgen_free: (a: number, b: number, c: number) => void;
   readonly __wbindgen_export_6: WebAssembly.Table;
-  readonly closure304_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure312_externref_shim: (a: number, b: number, c: any, d: any) => void;
-  readonly closure308_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure298_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure310_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure306_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure302_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure300_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure305_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure313_externref_shim: (a: number, b: number, c: any, d: any) => void;
+  readonly closure309_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure299_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure311_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure307_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure303_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure301_externref_shim: (a: number, b: number, c: any) => void;
   readonly _dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__hdd41d9e0ecd39422: (a: number, b: number) => void;
-  readonly closure1134_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure1153_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure1135_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure1154_externref_shim: (a: number, b: number, c: any) => void;
   readonly __wbindgen_start: () => void;
 }
 

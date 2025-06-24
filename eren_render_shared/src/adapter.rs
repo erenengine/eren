@@ -9,6 +9,7 @@ pub struct Adapter {
 }
 
 fn select_preferred_surface_format(formats: &[wgpu::TextureFormat]) -> wgpu::TextureFormat {
+    log::debug!("Available formats: {:#?}", formats);
     formats
         .iter()
         .copied()

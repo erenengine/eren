@@ -103,6 +103,9 @@ impl WindowEventHandler for TestWindowEventHandler {
 
         log::debug!("Renderer created");
 
+        let window_scale_factor = window.scale_factor();
+        log::debug!("Window scale factor: {}", window_scale_factor);
+
         Self {
             window,
             surface,

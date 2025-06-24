@@ -90,7 +90,7 @@ impl<'a> WindowEventHandler for TestWindowEventHandler<'a> {
     }
 
     fn on_redraw_requested(&mut self) {
-        log::debug!("Redraw requested");
+        //log::debug!("Redraw requested");
 
         self.renderer.render(&self.surface, &self.device).unwrap();
 
