@@ -8,11 +8,13 @@ use eren_vulkan_render_shared::{
 use eren_window::window::{WindowConfig, WindowEventHandler, WindowLifecycle};
 use winit::window::Window;
 
-mod test_pass1 {
+mod test_pass {
     pub mod renderer;
+    pub mod render_pass;
+    pub mod subpass;
 }
 
-use crate::test_pass1::renderer::TestRenderer;
+use crate::test_pass::renderer::TestRenderer;
 
 struct TestWindowEventHandler {
     window: Arc<Window>,

@@ -1,8 +1,6 @@
-pub mod render_passes;
-
 use eren_render_shared::{device::Device, surface::Surface};
 
-use crate::test_pass1::renderer::render_passes::test::TestRenderPass;
+use crate::test_pass::render_pass::TestRenderPass;
 
 pub struct TestRenderer {
     render_pass: TestRenderPass,

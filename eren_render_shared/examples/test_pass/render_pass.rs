@@ -1,6 +1,6 @@
 use eren_render_shared::device::Device;
 
-const SHADER_STR: &str = include_str!("../../shaders/shader.wgsl");
+const SHADER_STR: &str = include_str!("./shaders/shader.wgsl");
 
 const CLEAR_COLOR: wgpu::Color = wgpu::Color {
     r: 0.1921,

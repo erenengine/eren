@@ -12,15 +12,13 @@ use eren_vulkan_render_shared::{
 };
 use thiserror::Error;
 
-use crate::test_pass1::renderer::render_passes::test::TestRenderPassInitializationError;
-
-pub mod render_passes;
+use crate::test_pass::render_pass::{TestRenderPass, TestRenderPassInitializationError};
 
 pub struct TestRenderer {
     device: Arc<Device>,
     swapchain: Arc<Swapchain>,
     frame_mgr: FrameManager,
-    render_pass: render_passes::test::TestRenderPass,
+    render_pass: TestRenderPass,
 }
 
 #[derive(Debug, Error)]
@@ -67,9 +65,7 @@ impl TestRenderer {
         render_area: vk::Rect2D,
     ) -> Result<Self, TestRendererInitializationError> {
         let frame_mgr = FrameManager::new(device.clone(), command_pool, swapchain.image_len)?;
-
-        let render_pass =
-            render_passes::test::TestRenderPass::new(device.clone(), &swapchain, render_area)?;
+        let render_pass = TestRenderPass::new(device.clone(), &swapchain, render_area)?;
 
         Ok(Self {
             device,

@@ -7,8 +7,8 @@ use eren_vulkan_render_shared::{
 };
 use thiserror::Error;
 
-const VERT_SHADER_BYTES: &[u8] = include_bytes!("../../../shaders/shader.vert.spv");
-const FRAG_SHADER_BYTES: &[u8] = include_bytes!("../../../shaders/shader.frag.spv");
+const VERT_SHADER_BYTES: &[u8] = include_bytes!("./shaders/shader.vert.spv");
+const FRAG_SHADER_BYTES: &[u8] = include_bytes!("./shaders/shader.frag.spv");
 
 pub struct TestSubpass {
     device: Arc<Device>,

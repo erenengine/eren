@@ -8,11 +8,7 @@ use eren_vulkan_render_shared::{
 };
 use thiserror::Error;
 
-mod subpass;
-
-use crate::test_pass1::renderer::render_passes::test::subpass::{
-    TestSubpass, TestSubpassInitializationError,
-};
+use crate::test_pass::subpass::{TestSubpass, TestSubpassInitializationError};
 
 const CLEAR_VALUES: [vk::ClearValue; 1] = [vk::ClearValue {
     color: vk::ClearColorValue {
