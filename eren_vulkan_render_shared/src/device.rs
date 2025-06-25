@@ -206,7 +206,10 @@ impl Device {
                     .graphics_queue_family_index
                     .expect("Graphics queue family index not found"),
             )
-            .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER);
+            .flags(
+                vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER
+                    | vk::CommandPoolCreateFlags::TRANSIENT,
+            );
 
         Ok(unsafe {
             self.handle
@@ -256,7 +259,11 @@ impl Device {
     ) -> Result<(), CommandBufferBeginError> {
         unsafe {
             self.handle
-                .begin_command_buffer(command_buffer, &vk::CommandBufferBeginInfo::default())
+                .begin_command_buffer(
+                    command_buffer,
+                    &vk::CommandBufferBeginInfo::default()
+                        .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT),
+                )
                 .map_err(|e| CommandBufferBeginError(e.to_string()))?;
         }
 

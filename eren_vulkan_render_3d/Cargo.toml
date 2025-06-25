@@ -7,3 +7,4 @@ edition = "2024"
 eren_vulkan_render_shared = { path = "../eren_vulkan_render_shared" }
 eren_render_view_3d = { path = "../eren_render_view_3d" }
 ash = "0.38.0"
+thiserror = "2.0.12"

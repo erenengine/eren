@@ -1,12 +1,18 @@
 use glam::{Mat4, Vec2, Vec3};
 
+pub struct CameraUBO {
+    pub view_proj: [[f32; 4]; 4],
+    pub camera_pos: [f32; 2],
+    pub _padding: [f32; 2],
+}
+
 pub struct Camera {
     position: Vec2,
     zoom: f32,
     rotation: f32,     // in radians
     screen_size: Vec2, // in pixels or world units
 
-    pub view_proj_matrix: [[f32; 4]; 4],
+    pub ubo: CameraUBO,
 }
 
 impl Camera {
@@ -16,7 +22,11 @@ impl Camera {
             zoom,
             rotation,
             screen_size,
-            view_proj_matrix: Mat4::IDENTITY.to_cols_array_2d(),
+            ubo: CameraUBO {
+                view_proj: Mat4::IDENTITY.to_cols_array_2d(),
+                camera_pos: position.to_array(),
+                _padding: [0.0; 2],
+            },
         };
         cam.update();
         cam
@@ -31,6 +41,7 @@ impl Camera {
         let view = Mat4::from_translation(Vec3::new(-self.position.x, -self.position.y, 0.0))
             * Mat4::from_rotation_z(-self.rotation);
 
-        self.view_proj_matrix = (proj * view).to_cols_array_2d();
+        self.ubo.view_proj = (proj * view).to_cols_array_2d();
+        self.ubo.camera_pos = self.position.to_array();
     }
 }
