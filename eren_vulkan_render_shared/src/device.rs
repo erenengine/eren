@@ -265,17 +265,6 @@ impl Device {
 
         Ok(())
     }
-
-    pub fn free_command_buffers(
-        &self,
-        command_pool: vk::CommandPool,
-        command_buffers: Vec<vk::CommandBuffer>,
-    ) {
-        unsafe {
-            self.handle
-                .free_command_buffers(command_pool, &command_buffers);
-        }
-    }
 }
 
 /// --- 동기화 관련 기능들 ---
@@ -505,6 +494,18 @@ impl Device {
         }
     }
 
+    pub fn map_memory(
+        &self,
+        memory: vk::DeviceMemory,
+        size: vk::DeviceSize,
+    ) -> Result<*mut std::ffi::c_void, MapMemoryError> {
+        Ok(unsafe {
+            self.handle
+                .map_memory(memory, 0, size, vk::MemoryMapFlags::empty())
+                .map_err(|e| MapMemoryError(e.to_string()))?
+        })
+    }
+
     pub fn upload_slices_to_memory(
         &self,
         memory: vk::DeviceMemory,
@@ -512,10 +513,7 @@ impl Device {
         slices: &[MemoryUploadSlice],
     ) -> Result<(), MapMemoryError> {
         unsafe {
-            let data_ptr = self
-                .handle
-                .map_memory(memory, 0, total_size, vk::MemoryMapFlags::empty())
-                .map_err(|e| MapMemoryError(e.to_string()))? as *mut u8;
+            let data_ptr = self.map_memory(memory, total_size)? as *mut u8;
 
             for slice in slices {
                 std::ptr::copy_nonoverlapping(
@@ -868,11 +866,11 @@ pub enum GraphicsPipelineCreationError {
 impl Device {
     pub fn create_pipeline_layout(
         &self,
-        set_layouts: &[vk::DescriptorSetLayout],
+        descriptor_set_layouts: &[vk::DescriptorSetLayout],
         push_constant_ranges: &[vk::PushConstantRange],
     ) -> Result<vk::PipelineLayout, PipelineLayoutCreationError> {
         let pipeline_layout_info = vk::PipelineLayoutCreateInfo::default()
-            .set_layouts(set_layouts)
+            .set_layouts(descriptor_set_layouts)
             .push_constant_ranges(push_constant_ranges);
 
         Ok(unsafe {
@@ -967,6 +965,86 @@ impl Device {
     }
 }
 
+/// --- 디스크립터 셋 관련 기능들 ---
+
+#[derive(Debug, Error)]
+#[error("Failed to create descriptor set layout: {0}")]
+pub struct DescriptorSetLayoutCreationError(String);
+
+#[derive(Debug, Error)]
+#[error("Failed to create descriptor pool: {0}")]
+pub struct DescriptorPoolCreationError(String);
+
+#[derive(Debug, Error)]
+#[error("Failed to allocate descriptor sets: {0}")]
+pub struct DescriptorSetAllocationError(String);
+
+impl Device {
+    pub fn create_descriptor_set_layout(
+        &self,
+        bindings: &[vk::DescriptorSetLayoutBinding],
+    ) -> Result<vk::DescriptorSetLayout, DescriptorSetLayoutCreationError> {
+        let create_info = vk::DescriptorSetLayoutCreateInfo::default().bindings(bindings);
+
+        Ok(unsafe {
+            self.handle
+                .create_descriptor_set_layout(&create_info, None)
+                .map_err(|e| DescriptorSetLayoutCreationError(e.to_string()))?
+        })
+    }
+
+    pub fn destroy_descriptor_set_layout(&self, descriptor_set_layout: vk::DescriptorSetLayout) {
+        unsafe {
+            self.handle
+                .destroy_descriptor_set_layout(descriptor_set_layout, None);
+        }
+    }
+
+    pub fn create_descriptor_pool(
+        &self,
+        max_sets: u32,
+        pool_sizes: &[vk::DescriptorPoolSize],
+    ) -> Result<vk::DescriptorPool, DescriptorPoolCreationError> {
+        let create_info = vk::DescriptorPoolCreateInfo::default()
+            .max_sets(max_sets)
+            .pool_sizes(pool_sizes);
+
+        Ok(unsafe {
+            self.handle
+                .create_descriptor_pool(&create_info, None)
+                .map_err(|e| DescriptorPoolCreationError(e.to_string()))?
+        })
+    }
+
+    pub fn destroy_descriptor_pool(&self, descriptor_pool: vk::DescriptorPool) {
+        unsafe {
+            self.handle.destroy_descriptor_pool(descriptor_pool, None);
+        }
+    }
+
+    pub fn allocate_descriptor_sets(
+        &self,
+        descriptor_pool: vk::DescriptorPool,
+        layouts: &[vk::DescriptorSetLayout],
+    ) -> Result<Vec<vk::DescriptorSet>, DescriptorSetAllocationError> {
+        let alloc_info = vk::DescriptorSetAllocateInfo::default()
+            .descriptor_pool(descriptor_pool)
+            .set_layouts(layouts);
+
+        Ok(unsafe {
+            self.handle
+                .allocate_descriptor_sets(&alloc_info)
+                .map_err(|e| DescriptorSetAllocationError(e.to_string()))?
+        })
+    }
+
+    pub fn write_descriptor_sets(&self, descriptor_writes: &[vk::WriteDescriptorSet]) {
+        unsafe {
+            self.handle.update_descriptor_sets(descriptor_writes, &[]);
+        }
+    }
+}
+
 /// --- 드로잉 관련 기능들 ---
 
 #[derive(Debug, Error)]
@@ -996,6 +1074,24 @@ impl Device {
         unsafe {
             self.handle
                 .cmd_bind_index_buffer(command_buffer, index_buffer, offset, index_type);
+        }
+    }
+
+    pub fn bind_graphics_descriptor_sets(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        pipeline_layout: vk::PipelineLayout,
+        descriptor_sets: &[vk::DescriptorSet],
+    ) {
+        unsafe {
+            self.handle.cmd_bind_descriptor_sets(
+                command_buffer,
+                vk::PipelineBindPoint::GRAPHICS,
+                pipeline_layout,
+                0,
+                descriptor_sets,
+                &[],
+            );
         }
     }
 

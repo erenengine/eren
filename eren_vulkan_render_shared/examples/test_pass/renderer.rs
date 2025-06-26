@@ -76,10 +76,9 @@ impl TestRenderer {
     }
 
     pub fn render(&mut self) -> Result<bool, RenderError> {
-        let (image_available, in_flight, cmd_buffer) = {
-            let frame = self.frame_mgr.next_frame();
-            (frame.image_available, frame.in_flight, frame.cmd_buffer)
-        };
+        let (frame, _) = self.frame_mgr.next_frame();
+        let (image_available, in_flight, cmd_buffer) =
+            { (frame.image_available, frame.in_flight, frame.cmd_buffer) };
 
         // 이전 프레임 GPU 작업 완료 대기
         self.device.wait_for_fence(in_flight)?;

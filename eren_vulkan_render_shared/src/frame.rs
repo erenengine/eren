@@ -7,7 +7,7 @@ use crate::{
 use ash::vk;
 use thiserror::Error;
 
-const MAX_FRAMES_IN_FLIGHT: usize = 2;
+pub const MAX_FRAMES_IN_FLIGHT: usize = 2;
 
 pub struct FrameData {
     pub image_available: vk::Semaphore,
@@ -71,10 +71,10 @@ impl FrameManager {
         })
     }
 
-    pub fn next_frame(&mut self) -> &FrameData {
+    pub fn next_frame(&mut self) -> (&FrameData, usize) {
         let idx = self.current_frame;
         self.current_frame = (self.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
-        &self.frames[idx]
+        (&self.frames[idx], idx)
     }
 
     pub fn swapchain_image(&self, image_index: usize) -> &SwapchainImageData {

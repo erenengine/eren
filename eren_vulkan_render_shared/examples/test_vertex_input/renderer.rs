@@ -77,16 +77,15 @@ impl TestRenderer {
     }
 
     pub fn render(&mut self) -> Result<bool, RenderError> {
-        let (image_available, in_flight, cmd_buffer) = {
-            let frame = self.frame_mgr.next_frame();
-            (frame.image_available, frame.in_flight, frame.cmd_buffer)
-        };
+        let (frame, frame_idx) = self.frame_mgr.next_frame();
+        let (image_available, in_flight, cmd_buffer) =
+            { (frame.image_available, frame.in_flight, frame.cmd_buffer) };
 
         // 이전 프레임 GPU 작업 완료 대기
         self.device.wait_for_fence(in_flight)?;
         self.device.reset_fence(in_flight)?;
 
-        let (image_idx, is_suboptimal) = self.swapchain.acquire_next_image(
+        let (swapchain_image_idx, is_suboptimal) = self.swapchain.acquire_next_image(
             image_available, // wait
         )?;
 
@@ -96,13 +95,18 @@ impl TestRenderer {
         }
 
         // 이미지 전용 세마포어 가져오기
-        let img = self.frame_mgr.swapchain_image(image_idx as usize);
+        let img = self.frame_mgr.swapchain_image(swapchain_image_idx as usize);
 
         self.device.reset_command_buffer(cmd_buffer)?;
         self.device.begin_command_buffer(cmd_buffer)?;
 
-        self.render_pass
-            .record_commands(cmd_buffer, image_idx as usize);
+        self.render_pass.record_commands(
+            cmd_buffer,
+            swapchain_image_idx as usize,
+            frame_idx,
+            self.swapchain.window_width,
+            self.swapchain.window_height,
+        );
 
         self.device.end_command_buffer(cmd_buffer)?;
 
@@ -113,9 +117,9 @@ impl TestRenderer {
             in_flight,
         )?;
 
-        let is_suboptimal = self
-            .device
-            .present(&self.swapchain, image_idx, img.render_finished)?;
+        let is_suboptimal =
+            self.device
+                .present(&self.swapchain, swapchain_image_idx, img.render_finished)?;
 
         if is_suboptimal {
             log::debug!("Swapchain is suboptimal when present");

@@ -12,6 +12,7 @@ mod test_vertex_input {
     pub mod render_pass;
     pub mod renderer;
     pub mod subpass;
+    pub mod ubo;
     pub mod vertex;
 }
 

@@ -88,19 +88,23 @@ impl TestRenderPass {
     }
 
     pub fn record_commands(
-        &self,
+        &mut self,
         command_buffer: vk::CommandBuffer,
-        swapchain_framebuffer_idx: usize,
+        swapchain_image_idx: usize,
+        frame_idx: usize,
+        window_width: u32,
+        window_height: u32,
     ) {
         self.device.begin_render_pass(
             command_buffer,
             self.render_pass,
-            self.swapchain_framebuffers[swapchain_framebuffer_idx],
+            self.swapchain_framebuffers[swapchain_image_idx],
             self.render_area,
             &CLEAR_VALUES,
         );
 
-        self.subpass.record_commands(command_buffer);
+        self.subpass
+            .record_commands(command_buffer, frame_idx, window_width, window_height);
         //self.device.next_subpass(command_buffer); 다음 subpass로 넘어가려면 필요
 
         self.device.end_render_pass(command_buffer);

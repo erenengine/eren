@@ -13,12 +13,12 @@ pub struct Swapchain {
     _surface: Arc<Surface>,
 
     device: Arc<Device>,
-    window_width: u32,
-    window_height: u32,
     loader: swapchain::Device,
     handle: vk::SwapchainKHR,
     image_views: Vec<vk::ImageView>,
 
+    pub window_width: u32,
+    pub window_height: u32,
     pub image_len: usize,
 }
 
@@ -95,12 +95,14 @@ impl Swapchain {
 
         Ok(Self {
             _surface: surface,
+
             device,
-            window_width,
-            window_height,
             loader,
             handle,
             image_views,
+
+            window_width,
+            window_height,
             image_len: images.len(),
         })
     }
