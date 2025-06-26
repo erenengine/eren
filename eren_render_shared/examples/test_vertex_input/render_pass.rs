@@ -3,6 +3,8 @@ use eren_render_shared::device::Device;
 use crate::test_vertex_input::{ubo::UniformBufferObject, vertex::Vertex};
 use glam::{Vec2, Vec3};
 
+use chrono::Utc;
+
 const SHADER_STR: &str = include_str!("./shaders/shader.wgsl");
 
 const CLEAR_COLOR: wgpu::Color = wgpu::Color {
@@ -31,9 +33,54 @@ const TEST_VERTICES: [Vertex; 4] = [
     },
 ];
 
+fn create_vertex_buffer(device: &Device) -> wgpu::Buffer {
+    let vertex_size = (std::mem::size_of::<Vertex>() * TEST_VERTICES.len()) as wgpu::BufferAddress;
+
+    let buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("Test Buffer"),
+        size: vertex_size,
+        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
+
+    let vertex_bytes = unsafe {
+        std::slice::from_raw_parts(
+            TEST_VERTICES.as_ptr() as *const u8,
+            TEST_VERTICES.len() * std::mem::size_of::<Vertex>(),
+        )
+    };
+
+    device.queue.write_buffer(&buffer, 0, vertex_bytes);
+
+    buffer
+}
+
 const TEST_INDICES: [u16; 6] = [0, 1, 2, 2, 3, 0];
 
-pub struct CombinedBuffer {
+fn create_index_buffer(device: &Device) -> wgpu::Buffer {
+    let index_size = (std::mem::size_of::<u16>() * TEST_INDICES.len()) as wgpu::BufferAddress;
+
+    let buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("Test Buffer"),
+        size: index_size,
+        usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
+
+    let index_bytes = unsafe {
+        std::slice::from_raw_parts(
+            TEST_INDICES.as_ptr() as *const u8,
+            TEST_INDICES.len() * std::mem::size_of::<u16>(),
+        )
+    };
+
+    device.queue.write_buffer(&buffer, 0, index_bytes);
+
+    buffer
+}
+
+// WebGL에서는 하나의 WebGLBuffer를 gl.ARRAY_BUFFER와 gl.ELEMENT_ARRAY_BUFFER에 동시에 사용할 수 없습니다.
+/*pub struct CombinedBuffer {
     pub buffer: wgpu::Buffer,
     pub vertex_offset: wgpu::BufferAddress,
     pub index_offset: wgpu::BufferAddress,
@@ -81,14 +128,16 @@ fn create_combined_buffer(device: &Device) -> CombinedBuffer {
         index_offset,
         index_count: TEST_INDICES.len() as u32,
     }
-}
+}*/
 
 pub struct TestRenderPass {
     pipeline: wgpu::RenderPipeline,
-    combined_buffer: CombinedBuffer,
+    vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
+    index_count: u32,
     ubo_buffer: wgpu::Buffer,
     ubo_bind_group: wgpu::BindGroup,
-    start_time: std::time::Instant,
+    start_time: chrono::DateTime<chrono::Utc>,
 }
 
 impl TestRenderPass {
@@ -156,6 +205,7 @@ impl TestRenderPass {
             }),
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleStrip,
+                strip_index_format: Some(wgpu::IndexFormat::Uint16),
                 ..Default::default()
             },
             depth_stencil: None,
@@ -164,19 +214,26 @@ impl TestRenderPass {
             cache: None,
         });
 
-        let combined_buffer = create_combined_buffer(&device);
+        let vertex_buffer = create_vertex_buffer(&device);
+        let index_buffer = create_index_buffer(&device);
 
         Self {
             pipeline,
-            combined_buffer,
+            vertex_buffer,
+            index_buffer,
+            index_count: TEST_INDICES.len() as u32,
             ubo_buffer,
             ubo_bind_group,
-            start_time: std::time::Instant::now(),
+            start_time: Utc::now(),
         }
     }
 
     fn update_uniform_buffer(&mut self, device: &Device, window_width: u32, window_height: u32) {
-        let time = self.start_time.elapsed().as_secs_f32();
+        let time = self
+            .start_time
+            .signed_duration_since(Utc::now())
+            .num_milliseconds() as f32
+            / 1000.0;
 
         // 모델 행렬: Z축 회전
         let model = glam::Mat4::from_rotation_z(time.to_radians() * 90.0);
@@ -229,23 +286,12 @@ impl TestRenderPass {
 
         render_pass.set_pipeline(&self.pipeline);
 
-        render_pass.set_vertex_buffer(
-            0,
-            self.combined_buffer
-                .buffer
-                .slice(self.combined_buffer.vertex_offset..),
-        );
-
-        render_pass.set_index_buffer(
-            self.combined_buffer
-                .buffer
-                .slice(self.combined_buffer.index_offset..),
-            wgpu::IndexFormat::Uint16,
-        );
+        render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(0..));
+        render_pass.set_index_buffer(self.index_buffer.slice(0..), wgpu::IndexFormat::Uint16);
 
         self.update_uniform_buffer(device, window_width, window_height);
         render_pass.set_bind_group(0, &self.ubo_bind_group, &[]);
 
-        render_pass.draw_indexed(0..self.combined_buffer.index_count, 0, 0..1);
+        render_pass.draw_indexed(0..self.index_count, 0, 0..1);
     }
 }
