@@ -1,8 +1,4 @@
-use std::{
-    collections::{BTreeMap, HashSet},
-    ffi::CStr,
-    sync::Arc,
-};
+use std::{collections::HashSet, ffi::CStr, sync::Arc};
 
 use ash::vk;
 use thiserror::Error;
@@ -19,7 +15,7 @@ pub fn get_required_physical_device_features() -> vk::PhysicalDeviceFeatures {
 }
 
 fn has_required_features(instance: &Instance, physical_device: vk::PhysicalDevice) -> bool {
-    let features = instance.get_physical_device_features(physical_device);
+    let _features = instance.get_physical_device_features(physical_device);
     //TODO: 추후 필요할 때 추가
     /*if features.shader_clip_distance != vk::TRUE {
         return false;

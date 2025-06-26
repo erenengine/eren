@@ -23,9 +23,9 @@ pub struct Device {
 
     handle: ash::Device,
     graphics_queue: Option<vk::Queue>,
-    compute_queue: Option<vk::Queue>,
-    transfer_queue: Option<vk::Queue>,
-    sparse_binding_queue: Option<vk::Queue>,
+    _compute_queue: Option<vk::Queue>,
+    _transfer_queue: Option<vk::Queue>,
+    _sparse_binding_queue: Option<vk::Queue>,
     present_queue: Option<vk::Queue>,
 }
 
@@ -79,9 +79,9 @@ impl Device {
             physical_device,
             handle,
             graphics_queue,
-            compute_queue,
-            transfer_queue,
-            sparse_binding_queue,
+            _compute_queue: compute_queue,
+            _transfer_queue: transfer_queue,
+            _sparse_binding_queue: sparse_binding_queue,
             present_queue,
         })
     }
