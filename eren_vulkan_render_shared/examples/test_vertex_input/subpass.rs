@@ -65,11 +65,9 @@ pub struct CombinedBuffer {
 pub fn create_combined_buffer(
     device: &Device,
     command_pool: &CommandPool,
-    vertices: &[Vertex],
-    indices: &[u16],
 ) -> Result<CombinedBuffer, BufferCreationError> {
-    let vertex_size = (std::mem::size_of::<Vertex>() * vertices.len()) as vk::DeviceSize;
-    let index_size = (std::mem::size_of::<u16>() * indices.len()) as vk::DeviceSize;
+    let vertex_size = (std::mem::size_of::<Vertex>() * TEST_VERTICES.len()) as vk::DeviceSize;
+    let index_size = (std::mem::size_of::<u16>() * TEST_INDICES.len()) as vk::DeviceSize;
 
     let index_offset = (vertex_size + 3) & !3;
     let total_size = index_offset + index_size;
@@ -82,15 +80,15 @@ pub fn create_combined_buffer(
 
     let vertex_bytes = unsafe {
         std::slice::from_raw_parts(
-            vertices.as_ptr() as *const u8,
-            vertices.len() * std::mem::size_of::<Vertex>(),
+            TEST_VERTICES.as_ptr() as *const u8,
+            TEST_VERTICES.len() * std::mem::size_of::<Vertex>(),
         )
     };
 
     let index_bytes = unsafe {
         std::slice::from_raw_parts(
-            indices.as_ptr() as *const u8,
-            indices.len() * std::mem::size_of::<u16>(),
+            TEST_INDICES.as_ptr() as *const u8,
+            TEST_INDICES.len() * std::mem::size_of::<u16>(),
         )
     };
 
@@ -123,7 +121,7 @@ pub fn create_combined_buffer(
         memory,
         vertex_offset: 0,
         index_offset,
-        index_count: indices.len() as u32,
+        index_count: TEST_INDICES.len() as u32,
     })
 }
 
@@ -278,8 +276,7 @@ impl TestSubpass {
             Some(FRAG_SHADER_BYTES),
         )?;
 
-        let combined_buffer =
-            create_combined_buffer(&device, command_pool, &TEST_VERTICES, &TEST_INDICES)?;
+        let combined_buffer = create_combined_buffer(&device, command_pool)?;
 
         let buffer_size = std::mem::size_of::<UniformBufferObject>() as vk::DeviceSize;
 

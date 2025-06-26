@@ -68,4 +68,22 @@ impl Device {
     ) -> wgpu::CommandEncoder {
         self.handle.create_command_encoder(desc)
     }
+
+    pub fn create_buffer(&self, desc: &wgpu::BufferDescriptor) -> wgpu::Buffer {
+        self.handle.create_buffer(desc)
+    }
+
+    pub fn create_bind_group_layout(
+        &self,
+        desc: &wgpu::BindGroupLayoutDescriptor,
+    ) -> wgpu::BindGroupLayout {
+        self.handle.create_bind_group_layout(desc)
+    }
+
+    pub fn create_bind_group(
+        &self,
+        desc: &wgpu::BindGroupDescriptor,
+    ) -> wgpu::BindGroup {
+        self.handle.create_bind_group(desc)
+    }
 }
