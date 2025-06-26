@@ -1,6 +1,6 @@
 use glam::Mat4;
 
-#[repr(C)]
+#[repr(C, align(16))]
 #[derive(Copy, Clone, Debug)]
 pub struct UniformBufferObject {
     pub model: Mat4,
