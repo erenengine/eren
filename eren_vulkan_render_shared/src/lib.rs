@@ -1,3 +1,4 @@
+pub mod attachment;
 pub mod command;
 pub mod debug;
 pub mod device;

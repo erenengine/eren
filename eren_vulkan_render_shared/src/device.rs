@@ -1,9 +1,14 @@
 use std::{io::Cursor, sync::Arc};
 
-use ash::{khr::swapchain, util, vk};
+use ash::{
+    khr::swapchain,
+    util::{self},
+    vk,
+};
 use thiserror::Error;
 
 use crate::{
+    attachment::Attachment,
     instance::{DeviceCreationError, Instance},
     physical_device::{
         MemoryTypeIndexNotFoundError, PhysicalDevice, get_required_physical_device_extensions,
@@ -23,111 +28,6 @@ pub struct Device {
     sparse_binding_queue: Option<vk::Queue>,
     present_queue: Option<vk::Queue>,
 }
-
-#[derive(Debug, Error)]
-#[error("Failed to create command pool: {0}")]
-pub struct CommandPoolCreationError(String);
-
-#[derive(Debug, Error)]
-#[error("Failed to allocate command buffer: {0}")]
-pub struct CommandBufferAllocationError(String);
-
-#[derive(Debug, Error)]
-#[error("Failed to reset command buffer: {0}")]
-pub struct CommandBufferResetError(String);
-
-#[derive(Debug, Error)]
-#[error("Failed to begin command buffer: {0}")]
-pub struct CommandBufferBeginError(String);
-
-#[derive(Debug, Error)]
-#[error("Failed to end command buffer: {0}")]
-pub struct CommandBufferEndError(String);
-
-#[derive(Debug, Error)]
-#[error("Failed to create semaphore: {0}")]
-pub struct SemaphoreCreationError(String);
-
-#[derive(Debug, Error)]
-#[error("Failed to create fence: {0}")]
-pub struct FenceCreationError(String);
-
-#[derive(Debug, Error)]
-#[error("Failed to wait for fences: {0}")]
-pub struct WaitForFencesError(String);
-
-#[derive(Debug, Error)]
-#[error("Failed to reset fences: {0}")]
-pub struct ResetFencesError(String);
-
-#[derive(Debug, Error)]
-pub enum ImageWithMemoryCreationError {
-    #[error("Failed to create image: {0}")]
-    CreateImage(String),
-
-    #[error("Failed to find memory type index: {0}")]
-    FindMemoryTypeIndex(#[from] MemoryTypeIndexNotFoundError),
-
-    #[error("Failed to allocate memory: {0}")]
-    AllocateMemory(String),
-
-    #[error("Failed to bind memory to image: {0}")]
-    BindMemoryToImage(String),
-}
-
-#[derive(Debug, Error)]
-#[error("Failed to create image view: {0}")]
-pub struct ImageViewCreationError(String);
-
-pub struct Attachment<'a> {
-    pub desc: vk::AttachmentDescription2<'a>,
-    pub image: vk::Image,
-    pub memory: vk::DeviceMemory,
-    pub view: vk::ImageView,
-}
-
-#[derive(Debug, Error)]
-pub enum AttachmentCreationError {
-    #[error("Failed to create image with memory: {0}")]
-    CreateImageWithMemory(#[from] ImageWithMemoryCreationError),
-
-    #[error("Failed to create image view: {0}")]
-    CreateImageView(#[from] ImageViewCreationError),
-}
-
-#[derive(Debug, Error)]
-#[error("Failed to create render pass: {0}")]
-pub struct RenderPassCreationError(String);
-
-#[derive(Debug, Error)]
-#[error("Failed to create framebuffer: {0}")]
-pub struct FramebufferCreationError(String);
-
-#[derive(Debug, Error)]
-pub enum ShaderModuleCreationError {
-    #[error("Failed to read SPIR-V bytecode: {0}")]
-    ReadSpv(String),
-
-    #[error("Failed to create shader module: {0}")]
-    CreateShaderModule(String),
-}
-
-#[derive(Debug, Error)]
-#[error("Failed to create pipeline layout: {0}")]
-pub struct PipelineLayoutCreationError(String);
-
-#[derive(Debug, Error)]
-pub enum GraphicsPipelineCreationError {
-    #[error("Failed to create shader module: {0}")]
-    CreateShaderModule(#[from] ShaderModuleCreationError),
-
-    #[error("Failed to create graphics pipeline: {0}")]
-    CreateGraphicsPipeline(String),
-}
-
-#[derive(Debug, Error)]
-#[error("Failed to submit graphics commands: {0}")]
-pub struct SubmitGraphicsCommandsError(String);
 
 impl Device {
     pub fn new(
@@ -197,7 +97,49 @@ impl Device {
     pub fn create_swapchain_loader(&self) -> swapchain::Device {
         self.instance.create_swapchain_loader(&self.handle)
     }
+}
 
+/// --- 커맨드 관련 기능들 ---
+
+#[derive(Debug, Error)]
+#[error("Failed to create command pool: {0}")]
+pub struct CommandPoolCreationError(String);
+
+#[derive(Debug, Error)]
+#[error("Failed to allocate command buffer: {0}")]
+pub struct CommandBufferAllocationError(String);
+
+#[derive(Debug, Error)]
+#[error("Failed to reset command buffer: {0}")]
+pub struct CommandBufferResetError(String);
+
+#[derive(Debug, Error)]
+#[error("Failed to begin command buffer: {0}")]
+pub struct CommandBufferBeginError(String);
+
+#[derive(Debug, Error)]
+#[error("Failed to end command buffer: {0}")]
+pub struct CommandBufferEndError(String);
+
+#[derive(Debug, Error)]
+pub enum CopyCommandBufferError {
+    #[error("Failed to allocate command buffer: {0}")]
+    AllocateCommandBuffer(#[from] CommandBufferAllocationError),
+
+    #[error("Failed to begin command buffer: {0}")]
+    BeginCommandBuffer(#[from] CommandBufferBeginError),
+
+    #[error("Failed to end command buffer: {0}")]
+    EndCommandBuffer(#[from] CommandBufferEndError),
+
+    #[error("Failed to submit queue: {0}")]
+    SubmitQueue(String),
+
+    #[error("Failed to wait for queue: {0}")]
+    WaitQueue(String),
+}
+
+impl Device {
     pub fn create_command_pool(&self) -> Result<vk::CommandPool, CommandPoolCreationError> {
         let command_pool_info = vk::CommandPoolCreateInfo::default()
             .queue_family_index(
@@ -229,13 +171,14 @@ impl Device {
         command_pool: vk::CommandPool,
         command_buffer_count: u32,
     ) -> Result<Vec<vk::CommandBuffer>, CommandBufferAllocationError> {
+        let alloc_info = vk::CommandBufferAllocateInfo::default()
+            .level(vk::CommandBufferLevel::PRIMARY)
+            .command_pool(command_pool)
+            .command_buffer_count(command_buffer_count);
+
         Ok(unsafe {
             self.handle
-                .allocate_command_buffers(
-                    &vk::CommandBufferAllocateInfo::default()
-                        .command_pool(command_pool)
-                        .command_buffer_count(command_buffer_count),
-                )
+                .allocate_command_buffers(&alloc_info)
                 .map_err(|e| CommandBufferAllocationError(e.to_string()))?
         })
     }
@@ -257,14 +200,54 @@ impl Device {
         &self,
         command_buffer: vk::CommandBuffer,
     ) -> Result<(), CommandBufferBeginError> {
+        let begin_info = vk::CommandBufferBeginInfo::default()
+            .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+
         unsafe {
             self.handle
-                .begin_command_buffer(
-                    command_buffer,
-                    &vk::CommandBufferBeginInfo::default()
-                        .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT),
-                )
+                .begin_command_buffer(command_buffer, &begin_info)
                 .map_err(|e| CommandBufferBeginError(e.to_string()))?;
+        }
+
+        Ok(())
+    }
+
+    pub fn copy_command_buffer(
+        &self,
+        command_pool: vk::CommandPool,
+        src_buffer: vk::Buffer,
+        dst_buffer: vk::Buffer,
+        size: vk::DeviceSize,
+    ) -> Result<(), CopyCommandBufferError> {
+        let command_buffer = self.allocate_command_buffers(command_pool, 1)?[0];
+
+        self.begin_command_buffer(command_buffer)?;
+
+        let copy_region = vk::BufferCopy::default()
+            .src_offset(0) // Optional
+            .dst_offset(0) // Optional
+            .size(size);
+
+        unsafe {
+            self.handle
+                .cmd_copy_buffer(command_buffer, src_buffer, dst_buffer, &[copy_region]);
+        }
+
+        self.end_command_buffer(command_buffer)?;
+
+        let submit_info =
+            vk::SubmitInfo::default().command_buffers(std::slice::from_ref(&command_buffer));
+
+        unsafe {
+            let graphics_queue = self.graphics_queue.expect("Graphics queue not found");
+
+            self.handle
+                .queue_submit(graphics_queue, &[submit_info], vk::Fence::null())
+                .map_err(|e| CopyCommandBufferError::SubmitQueue(e.to_string()))?;
+
+            self.handle
+                .queue_wait_idle(graphics_queue)
+                .map_err(|e| CopyCommandBufferError::WaitQueue(e.to_string()))?;
         }
 
         Ok(())
@@ -293,7 +276,27 @@ impl Device {
                 .free_command_buffers(command_pool, &command_buffers);
         }
     }
+}
 
+/// --- 동기화 관련 기능들 ---
+
+#[derive(Debug, Error)]
+#[error("Failed to create semaphore: {0}")]
+pub struct SemaphoreCreationError(String);
+
+#[derive(Debug, Error)]
+#[error("Failed to create fence: {0}")]
+pub struct FenceCreationError(String);
+
+#[derive(Debug, Error)]
+#[error("Failed to wait for fences: {0}")]
+pub struct WaitForFencesError(String);
+
+#[derive(Debug, Error)]
+#[error("Failed to reset fences: {0}")]
+pub struct ResetFencesError(String);
+
+impl Device {
     pub fn create_semaphore(&self) -> Result<vk::Semaphore, SemaphoreCreationError> {
         Ok(unsafe {
             self.handle
@@ -344,8 +347,70 @@ impl Device {
             self.handle.destroy_fence(fence, None);
         }
     }
+}
 
-    pub fn create_image_with_memory(
+/// --- 메모리 관련 기능들 ---
+
+#[derive(Debug, Error)]
+#[error("Failed to allocate memory: {0}")]
+pub struct AllocateMemoryError(String);
+
+#[derive(Debug, Error)]
+pub enum ImageWithMemoryCreationError {
+    #[error("Failed to create image: {0}")]
+    CreateImage(String),
+
+    #[error("Failed to find memory type index: {0}")]
+    FindMemoryTypeIndex(#[from] MemoryTypeIndexNotFoundError),
+
+    #[error("Failed to allocate memory: {0}")]
+    AllocateMemory(#[from] AllocateMemoryError),
+
+    #[error("Failed to bind memory to image: {0}")]
+    BindMemoryToImage(String),
+}
+
+#[derive(Debug, Error)]
+pub enum BufferWithMemoryCreationError {
+    #[error("Failed to create buffer: {0}")]
+    CreateBuffer(String),
+
+    #[error("Failed to find memory type index: {0}")]
+    FindMemoryTypeIndex(#[from] MemoryTypeIndexNotFoundError),
+
+    #[error("Failed to allocate memory: {0}")]
+    AllocateMemory(#[from] AllocateMemoryError),
+
+    #[error("Failed to bind memory to buffer: {0}")]
+    BindMemoryToBuffer(String),
+}
+
+pub struct MemoryUploadSlice<'a> {
+    pub src: &'a [u8],
+    pub dst_offset: vk::DeviceSize,
+}
+
+#[derive(Debug, Error)]
+#[error("Failed to map memory: {0}")]
+pub struct MapMemoryError(String);
+
+impl Device {
+    fn allocate_memory(
+        &self,
+        allocation_size: vk::DeviceSize,
+        memory_type_index: u32,
+    ) -> Result<vk::DeviceMemory, AllocateMemoryError> {
+        let alloc_info = vk::MemoryAllocateInfo::default()
+            .allocation_size(allocation_size)
+            .memory_type_index(memory_type_index);
+
+        let memory = unsafe { self.handle.allocate_memory(&alloc_info, None) }
+            .map_err(|e| AllocateMemoryError(e.to_string()))?;
+
+        Ok(memory)
+    }
+
+    fn create_image_with_memory(
         &self,
         format: vk::Format,
         extent: vk::Extent2D,
@@ -381,12 +446,7 @@ impl Device {
             .physical_device
             .find_memory_type_index(memory_requirements.memory_type_bits, memory_properties)?;
 
-        let alloc_info = vk::MemoryAllocateInfo::default()
-            .allocation_size(memory_requirements.size)
-            .memory_type_index(memory_type_index);
-
-        let memory = unsafe { self.handle.allocate_memory(&alloc_info, None) }
-            .map_err(|e| ImageWithMemoryCreationError::AllocateMemory(e.to_string()))?;
+        let memory = self.allocate_memory(memory_requirements.size, memory_type_index)?;
 
         unsafe {
             self.handle
@@ -397,6 +457,87 @@ impl Device {
         Ok((image, memory))
     }
 
+    fn destroy_image_with_memory(&self, image: vk::Image, memory: vk::DeviceMemory) {
+        unsafe {
+            self.handle.destroy_image(image, None);
+            self.handle.free_memory(memory, None);
+        }
+    }
+
+    pub fn create_buffer_with_memory(
+        &self,
+        size: vk::DeviceSize,
+        usage: vk::BufferUsageFlags,
+        memory_properties: vk::MemoryPropertyFlags,
+    ) -> Result<(vk::Buffer, vk::DeviceMemory), BufferWithMemoryCreationError> {
+        let buffer_info = vk::BufferCreateInfo::default()
+            .size(size)
+            .usage(usage)
+            .sharing_mode(vk::SharingMode::EXCLUSIVE);
+
+        let buffer = unsafe {
+            self.handle
+                .create_buffer(&buffer_info, None)
+                .map_err(|e| BufferWithMemoryCreationError::CreateBuffer(e.to_string()))?
+        };
+
+        let memory_requirements = unsafe { self.handle.get_buffer_memory_requirements(buffer) };
+
+        let memory_type_index = self
+            .physical_device
+            .find_memory_type_index(memory_requirements.memory_type_bits, memory_properties)?;
+
+        let memory = self.allocate_memory(memory_requirements.size, memory_type_index)?;
+
+        unsafe {
+            self.handle
+                .bind_buffer_memory(buffer, memory, 0)
+                .map_err(|e| BufferWithMemoryCreationError::BindMemoryToBuffer(e.to_string()))?;
+        }
+
+        Ok((buffer, memory))
+    }
+
+    pub fn destroy_buffer_with_memory(&self, buffer: vk::Buffer, memory: vk::DeviceMemory) {
+        unsafe {
+            self.handle.destroy_buffer(buffer, None);
+            self.handle.free_memory(memory, None);
+        }
+    }
+
+    pub fn upload_slices_to_memory(
+        &self,
+        memory: vk::DeviceMemory,
+        total_size: vk::DeviceSize,
+        slices: &[MemoryUploadSlice],
+    ) -> Result<(), MapMemoryError> {
+        unsafe {
+            let data_ptr = self
+                .handle
+                .map_memory(memory, 0, total_size, vk::MemoryMapFlags::empty())
+                .map_err(|e| MapMemoryError(e.to_string()))? as *mut u8;
+
+            for slice in slices {
+                std::ptr::copy_nonoverlapping(
+                    slice.src.as_ptr(),
+                    data_ptr.add(slice.dst_offset as usize),
+                    slice.src.len(),
+                );
+            }
+
+            self.handle.unmap_memory(memory);
+        }
+        Ok(())
+    }
+}
+
+/// --- 이미지 뷰 관련 기능들 ---
+
+#[derive(Debug, Error)]
+#[error("Failed to create image view: {0}")]
+pub struct ImageViewCreationError(String);
+
+impl Device {
     pub fn create_image_view(
         &self,
         image: vk::Image,
@@ -427,7 +568,20 @@ impl Device {
             self.handle.destroy_image_view(image_view, None);
         }
     }
+}
 
+/// --- 첨부 관련 기능들 ---
+
+#[derive(Debug, Error)]
+pub enum AttachmentCreationError {
+    #[error("Failed to create image with memory: {0}")]
+    CreateImageWithMemory(#[from] ImageWithMemoryCreationError),
+
+    #[error("Failed to create image view: {0}")]
+    CreateImageView(#[from] ImageViewCreationError),
+}
+
+impl Device {
     pub fn create_depth_attachment(
         &self,
         extent: vk::Extent2D,
@@ -560,11 +714,43 @@ impl Device {
     pub fn destroy_attachment(&self, attachment: Attachment) {
         unsafe {
             self.handle.destroy_image_view(attachment.view, None);
-            self.handle.destroy_image(attachment.image, None);
-            self.handle.free_memory(attachment.memory, None);
+            self.destroy_image_with_memory(attachment.image, attachment.memory);
         }
     }
+}
 
+/// --- 프레임 버퍼 관련 기능들 ---
+
+#[derive(Debug, Error)]
+#[error("Failed to create framebuffer: {0}")]
+pub struct FramebufferCreationError(String);
+
+impl Device {
+    pub fn create_framebuffer(
+        &self,
+        framebuffer_info: vk::FramebufferCreateInfo,
+    ) -> Result<vk::Framebuffer, FramebufferCreationError> {
+        Ok(unsafe {
+            self.handle
+                .create_framebuffer(&framebuffer_info, None)
+                .map_err(|e| FramebufferCreationError(e.to_string()))?
+        })
+    }
+
+    pub fn destroy_framebuffer(&self, framebuffer: vk::Framebuffer) {
+        unsafe {
+            self.handle.destroy_framebuffer(framebuffer, None);
+        }
+    }
+}
+
+/// --- 패스 관련 기능들 ---
+
+#[derive(Debug, Error)]
+#[error("Failed to create render pass: {0}")]
+pub struct RenderPassCreationError(String);
+
+impl Device {
     pub fn create_render_pass(
         &self,
         attachments: &[vk::AttachmentDescription2],
@@ -589,23 +775,57 @@ impl Device {
         }
     }
 
-    pub fn create_framebuffer(
+    pub fn begin_render_pass(
         &self,
-        framebuffer_info: vk::FramebufferCreateInfo,
-    ) -> Result<vk::Framebuffer, FramebufferCreationError> {
-        Ok(unsafe {
-            self.handle
-                .create_framebuffer(&framebuffer_info, None)
-                .map_err(|e| FramebufferCreationError(e.to_string()))?
-        })
-    }
-
-    pub fn destroy_framebuffer(&self, framebuffer: vk::Framebuffer) {
+        command_buffer: vk::CommandBuffer,
+        render_pass: vk::RenderPass,
+        framebuffer: vk::Framebuffer,
+        render_area: vk::Rect2D,
+        clear_values: &[vk::ClearValue],
+    ) {
         unsafe {
-            self.handle.destroy_framebuffer(framebuffer, None);
+            self.handle.cmd_begin_render_pass2(
+                command_buffer,
+                &vk::RenderPassBeginInfo::default()
+                    .render_pass(render_pass)
+                    .framebuffer(framebuffer)
+                    .render_area(render_area)
+                    .clear_values(clear_values),
+                &vk::SubpassBeginInfo::default().contents(vk::SubpassContents::INLINE),
+            );
         }
     }
 
+    pub fn next_subpass(&self, command_buffer: vk::CommandBuffer) {
+        let subpass_begin_info =
+            vk::SubpassBeginInfo::default().contents(vk::SubpassContents::INLINE);
+        let subpass_end_info = vk::SubpassEndInfo::default();
+        unsafe {
+            self.handle
+                .cmd_next_subpass2(command_buffer, &subpass_begin_info, &subpass_end_info);
+        }
+    }
+
+    pub fn end_render_pass(&self, command_buffer: vk::CommandBuffer) {
+        unsafe {
+            self.handle
+                .cmd_end_render_pass2(command_buffer, &vk::SubpassEndInfo::default());
+        }
+    }
+}
+
+/// --- 쉐이더 관련 기능들 ---
+
+#[derive(Debug, Error)]
+pub enum ShaderModuleCreationError {
+    #[error("Failed to read SPIR-V bytecode: {0}")]
+    ReadSpv(String),
+
+    #[error("Failed to create shader module: {0}")]
+    CreateShaderModule(String),
+}
+
+impl Device {
     fn create_shader_module(
         &self,
         code: &[u8],
@@ -628,7 +848,24 @@ impl Device {
             self.handle.destroy_shader_module(module, None);
         }
     }
+}
 
+/// --- 파이프라인 관련 기능들 ---
+
+#[derive(Debug, Error)]
+#[error("Failed to create pipeline layout: {0}")]
+pub struct PipelineLayoutCreationError(String);
+
+#[derive(Debug, Error)]
+pub enum GraphicsPipelineCreationError {
+    #[error("Failed to create shader module: {0}")]
+    CreateShaderModule(#[from] ShaderModuleCreationError),
+
+    #[error("Failed to create graphics pipeline: {0}")]
+    CreateGraphicsPipeline(String),
+}
+
+impl Device {
     pub fn create_pipeline_layout(
         &self,
         set_layouts: &[vk::DescriptorSetLayout],
@@ -717,27 +954,6 @@ impl Device {
         }
     }
 
-    pub fn begin_render_pass(
-        &self,
-        command_buffer: vk::CommandBuffer,
-        render_pass: vk::RenderPass,
-        framebuffer: vk::Framebuffer,
-        render_area: vk::Rect2D,
-        clear_values: &[vk::ClearValue],
-    ) {
-        unsafe {
-            self.handle.cmd_begin_render_pass2(
-                command_buffer,
-                &vk::RenderPassBeginInfo::default()
-                    .render_pass(render_pass)
-                    .framebuffer(framebuffer)
-                    .render_area(render_area)
-                    .clear_values(clear_values),
-                &vk::SubpassBeginInfo::default().contents(vk::SubpassContents::INLINE),
-            );
-        }
-    }
-
     pub fn bind_pipeline(
         &self,
         command_buffer: vk::CommandBuffer,
@@ -747,6 +963,39 @@ impl Device {
         unsafe {
             self.handle
                 .cmd_bind_pipeline(command_buffer, pipeline_bind_point, pipeline);
+        }
+    }
+}
+
+/// --- 드로잉 관련 기능들 ---
+
+#[derive(Debug, Error)]
+#[error("Failed to submit graphics commands: {0}")]
+pub struct SubmitGraphicsCommandsError(String);
+
+impl Device {
+    pub fn bind_vertex_buffers(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        vertex_buffers: &[vk::Buffer],
+        offsets: &[vk::DeviceSize],
+    ) {
+        unsafe {
+            self.handle
+                .cmd_bind_vertex_buffers(command_buffer, 0, vertex_buffers, offsets);
+        }
+    }
+
+    pub fn bind_index_buffer(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        index_buffer: vk::Buffer,
+        index_type: vk::IndexType,
+        offset: vk::DeviceSize,
+    ) {
+        unsafe {
+            self.handle
+                .cmd_bind_index_buffer(command_buffer, index_buffer, offset, index_type);
         }
     }
 
@@ -769,20 +1018,24 @@ impl Device {
         }
     }
 
-    pub fn next_subpass(&self, command_buffer: vk::CommandBuffer) {
-        let subpass_begin_info =
-            vk::SubpassBeginInfo::default().contents(vk::SubpassContents::INLINE);
-        let subpass_end_info = vk::SubpassEndInfo::default();
+    pub fn draw_indexed(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        index_count: u32,
+        instance_count: u32,
+        first_index: u32,
+        vertex_offset: i32,
+        first_instance: u32,
+    ) {
         unsafe {
-            self.handle
-                .cmd_next_subpass2(command_buffer, &subpass_begin_info, &subpass_end_info);
-        }
-    }
-
-    pub fn end_render_pass(&self, command_buffer: vk::CommandBuffer) {
-        unsafe {
-            self.handle
-                .cmd_end_render_pass2(command_buffer, &vk::SubpassEndInfo::default());
+            self.handle.cmd_draw_indexed(
+                command_buffer,
+                index_count,
+                instance_count,
+                first_index,
+                vertex_offset,
+                first_instance,
+            );
         }
     }
 

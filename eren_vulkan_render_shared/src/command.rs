@@ -2,7 +2,12 @@ use std::sync::Arc;
 
 use ash::vk;
 
-use crate::device::{CommandBufferAllocationError, CommandPoolCreationError, Device};
+use crate::device::{
+    CommandBufferAllocationError, CommandBufferBeginError, CommandPoolCreationError,
+    CopyCommandBufferError, Device,
+};
+
+use thiserror::Error;
 
 // 커맨드 풀은 스레드 당 하나씩 생성해야 합니다. 스레드 간 공유할 수 없습니다.
 pub struct CommandPool {
@@ -24,6 +29,16 @@ impl CommandPool {
         Ok(self
             .device
             .allocate_command_buffers(self.handle, command_buffer_count)?)
+    }
+
+    pub fn copy_buffer(
+        &self,
+        src_buffer: vk::Buffer,
+        dst_buffer: vk::Buffer,
+        size: vk::DeviceSize,
+    ) -> Result<(), CopyCommandBufferError> {
+        self.device
+            .copy_command_buffer(self.handle, src_buffer, dst_buffer, size)
     }
 }
 

@@ -8,8 +8,11 @@ export VK_LAYER_PATH=$VULKAN_SDK/share/vulkan/explicit_layer.d
 
 ## 쉐이더 컴파일
 ```
-glslc examples/test_pass1/shaders/shader.vert -o examples/test_pass1/shaders/shader.vert.spv
-glslc examples/test_pass1/shaders/shader.frag -o examples/test_pass1/shaders/shader.frag.spv
+glslc examples/test_pass/shaders/shader.vert -o examples/test_pass/shaders/shader.vert.spv
+glslc examples/test_pass/shaders/shader.frag -o examples/test_pass/shaders/shader.frag.spv
+
+glslc examples/test_vertex_input/shaders/shader.vert -o examples/test_vertex_input/shaders/shader.vert.spv
+glslc examples/test_vertex_input/shaders/shader.frag -o examples/test_vertex_input/shaders/shader.frag.spv
 ```
 
 ## 테스트
@@ -17,6 +20,6 @@ glslc examples/test_pass1/shaders/shader.frag -o examples/test_pass1/shaders/sha
 RUST_LOG=debug cargo run --example test_instance
 RUST_LOG=debug cargo run --example test_physical_device
 RUST_LOG=debug cargo run --example test_device
-RUST_LOG=debug cargo run --example test_pass1
-RUST_LOG=debug cargo run --example test_pass2
+RUST_LOG=debug cargo run --example test_pass
+RUST_LOG=debug cargo run --example test_vertex_input
 ```
