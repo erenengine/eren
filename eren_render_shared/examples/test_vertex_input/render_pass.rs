@@ -1,6 +1,9 @@
 use eren_render_shared::device::Device;
 
-use crate::test_vertex_input::{ubo::UniformBufferObject, vertex::Vertex};
+use crate::test_vertex_input::{
+    ubo::UniformBufferObject,
+    vertex::{VERTEX_DESC, Vertex},
+};
 use glam::{Vec2, Vec3};
 
 use chrono::Utc;
@@ -190,7 +193,7 @@ impl TestRenderPass {
             vertex: wgpu::VertexState {
                 module: &shader_module,
                 entry_point: Some("vs_main"),
-                buffers: &[Vertex::desc()],
+                buffers: &[VERTEX_DESC],
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             fragment: Some(wgpu::FragmentState {
