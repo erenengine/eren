@@ -129,7 +129,7 @@ impl Instance {
 
         let enabled_layers_pointers = enabled_layers
             .iter()
-            .map(|s| s.as_ptr())
+            .map(|s: &CString| s.as_ptr())
             .collect::<Vec<_>>();
 
         let mut handle_info = vk::InstanceCreateInfo::default()

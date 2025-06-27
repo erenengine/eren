@@ -1,4 +1,4 @@
-use std::{io::Cursor, sync::Arc};
+use std::{ffi::CStr, io::Cursor, sync::Arc};
 
 use ash::{
     khr::swapchain,
@@ -39,7 +39,7 @@ impl Device {
         let required_extensions = get_required_physical_device_extensions();
         let required_extensions_pointers = required_extensions
             .iter()
-            .map(|s| s.as_ptr())
+            .map(|s: &&CStr| s.as_ptr())
             .collect::<Vec<_>>();
 
         let device_info = vk::DeviceCreateInfo::default()

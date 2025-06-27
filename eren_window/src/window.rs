@@ -9,6 +9,9 @@ use winit::{
     window::{Window, WindowId},
 };
 
+#[cfg(target_os = "android")]
+use winit::platform::android::{EventLoopBuilderExtAndroid, activity::AndroidApp};
+
 #[cfg(target_arch = "wasm32")]
 use winit::event_loop::EventLoopProxy;
 
@@ -63,7 +66,7 @@ impl<E: WindowEventHandler> WindowLifecycle<E> {
 }
 
 impl<E: WindowEventHandler> WindowLifecycle<E> {
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32")))]
     pub fn start_event_loop(&mut self) -> Result<(), WindowLifecycleError> {
         let event_loop = EventLoop::<E>::with_user_event().build()?;
         event_loop.run_app(self)?;
