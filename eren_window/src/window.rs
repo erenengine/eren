@@ -66,9 +66,18 @@ impl<E: WindowEventHandler> WindowLifecycle<E> {
 }
 
 impl<E: WindowEventHandler> WindowLifecycle<E> {
-    #[cfg(all(not(target_arch = "wasm32")))]
+    #[cfg(all(not(target_arch = "wasm32"), not(target_os = "android")))]
     pub fn start_event_loop(&mut self) -> Result<(), WindowLifecycleError> {
         let event_loop = EventLoop::<E>::with_user_event().build()?;
+        event_loop.run_app(self)?;
+        Ok(())
+    }
+
+    #[cfg(target_os = "android")]
+    pub fn start_event_loop(&mut self, app: AndroidApp) -> Result<(), WindowLifecycleError> {
+        let mut event_loop = EventLoop::<E>::with_user_event()
+            .with_android_app(app)
+            .build()?;
         event_loop.run_app(self)?;
         Ok(())
     }
