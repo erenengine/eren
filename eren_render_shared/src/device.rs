@@ -37,6 +37,7 @@ impl Device {
     }
 
     pub fn resize_surface(&mut self, surface: &Surface<'_>, window_width: u32, window_height: u32) {
+        #[cfg(not(target_os = "ios"))]
         if window_width > 0 && window_height > 0 {
             self.surface_config.width = window_width;
             self.surface_config.height = window_height;
@@ -80,10 +81,7 @@ impl Device {
         self.handle.create_bind_group_layout(desc)
     }
 
-    pub fn create_bind_group(
-        &self,
-        desc: &wgpu::BindGroupDescriptor,
-    ) -> wgpu::BindGroup {
+    pub fn create_bind_group(&self, desc: &wgpu::BindGroupDescriptor) -> wgpu::BindGroup {
         self.handle.create_bind_group(desc)
     }
 }

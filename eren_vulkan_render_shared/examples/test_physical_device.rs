@@ -41,8 +41,6 @@ impl WindowEventHandler for TestWindowEventHandler {
 
     fn on_redraw_requested(&mut self) {
         log::debug!("Redraw requested");
-
-        self.window.request_redraw();
     }
 }
 

@@ -94,8 +94,6 @@ impl<'a> WindowEventHandler for TestWindowEventHandler<'a> {
         //log::debug!("Redraw requested");
 
         self.renderer.render(&self.surface, &self.device).unwrap();
-
-        self.window.request_redraw();
     }
 }
 

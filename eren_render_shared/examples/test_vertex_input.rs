@@ -104,8 +104,6 @@ impl<'a> WindowEventHandler for TestWindowEventHandler<'a> {
                 window_size.height,
             )
             .unwrap();
-
-        self.window.request_redraw();
     }
 }
 

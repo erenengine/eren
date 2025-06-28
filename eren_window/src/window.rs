@@ -50,6 +50,9 @@ pub struct WindowLifecycle<E: WindowEventHandler + 'static> {
 
     #[cfg(target_arch = "wasm32")]
     proxy: Option<EventLoopProxy<E>>,
+
+    #[cfg(target_os = "ios")]
+    should_request_redraw: bool,
 }
 
 impl<E: WindowEventHandler> WindowLifecycle<E> {
@@ -61,6 +64,9 @@ impl<E: WindowEventHandler> WindowLifecycle<E> {
 
             #[cfg(target_arch = "wasm32")]
             proxy: None,
+
+            #[cfg(target_os = "ios")]
+            should_request_redraw: false,
         }
     }
 }
@@ -131,7 +137,7 @@ impl<E: WindowEventHandler> ApplicationHandler<E> for WindowLifecycle<E> {
         }
 
         let raw_window = {
-            #[cfg(not(target_arch = "wasm32"))]
+            #[cfg(all(not(target_arch = "wasm32"), not(target_os = "ios")))]
             {
                 use winit::dpi::LogicalSize;
 
@@ -144,6 +150,13 @@ impl<E: WindowEventHandler> ApplicationHandler<E> for WindowLifecycle<E> {
                                 self.config.height,
                             )),
                     )
+                    .expect("Failed to create native window")
+            }
+
+            #[cfg(target_os = "ios")]
+            {
+                event_loop
+                    .create_window(Window::default_attributes().with_title(self.config.title))
                     .expect("Failed to create native window")
             }
 
@@ -211,8 +224,28 @@ impl<E: WindowEventHandler> ApplicationHandler<E> for WindowLifecycle<E> {
                 if let Some(event_handler) = &mut self.event_handler {
                     event_handler.on_redraw_requested();
                 }
+
+                #[cfg(not(target_os = "ios"))]
+                if let Some(window) = &self.window {
+                    window.request_redraw();
+                }
+
+                #[cfg(target_os = "ios")]
+                {
+                    self.should_request_redraw = true;
+                }
             }
             _ => {}
+        }
+    }
+
+    #[cfg(target_os = "ios")]
+    fn about_to_wait(&mut self, _: &ActiveEventLoop) {
+        if let Some(window) = &self.window {
+            if self.should_request_redraw {
+                window.request_redraw();
+            }
+            self.should_request_redraw = false;
         }
     }
 
