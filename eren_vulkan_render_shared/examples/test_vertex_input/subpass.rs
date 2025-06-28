@@ -357,7 +357,7 @@ impl TestSubpass {
         let time = self.start_time.elapsed().as_secs_f32();
 
         // 모델 행렬: Z축 회전
-        let model = glam::Mat4::from_rotation_z(time.to_radians() * 90.0);
+        let model = glam::Mat4::from_rotation_z(-time.to_radians() * 90.0);
 
         // 뷰 행렬: 카메라 위치 설정
         let eye = glam::Vec3::new(2.0, 2.0, 2.0);
