@@ -347,7 +347,13 @@ impl TestSubpass {
         })
     }
 
-    fn update_uniform_buffer(&mut self, frame_idx: usize, window_width: u32, window_height: u32) {
+    fn update_uniform_buffer(
+        &mut self,
+        frame_idx: usize,
+        window_width: u32,
+        window_height: u32,
+        pre_transform: vk::SurfaceTransformFlagsKHR,
+    ) {
         let time = self.start_time.elapsed().as_secs_f32();
 
         // 모델 행렬: Z축 회전
@@ -366,6 +372,21 @@ impl TestSubpass {
         // Vulkan에서는 Y축 뒤집기 필요
         proj.y_axis.y *= -1.0;
 
+        // 화면 회전에 따른 프로젝션 행렬 수정
+        let correction = match pre_transform {
+            vk::SurfaceTransformFlagsKHR::ROTATE_90 => {
+                glam::Mat4::from_rotation_z(90_f32.to_radians())
+            }
+            vk::SurfaceTransformFlagsKHR::ROTATE_180 => {
+                glam::Mat4::from_rotation_z(180_f32.to_radians())
+            }
+            vk::SurfaceTransformFlagsKHR::ROTATE_270 => {
+                glam::Mat4::from_rotation_z(270_f32.to_radians())
+            }
+            _ => glam::Mat4::IDENTITY,
+        };
+        proj = correction * proj;
+
         let ubo = UniformBufferObject { model, view, proj };
 
         // 메모리에 데이터 복사
@@ -381,6 +402,7 @@ impl TestSubpass {
         frame_idx: usize,
         window_width: u32,
         window_height: u32,
+        pre_transform: vk::SurfaceTransformFlagsKHR,
     ) {
         self.pipeline.bind_pipeline(command_buffer);
 
@@ -397,7 +419,7 @@ impl TestSubpass {
             self.combined_buffer.index_offset,
         );
 
-        self.update_uniform_buffer(frame_idx, window_width, window_height);
+        self.update_uniform_buffer(frame_idx, window_width, window_height, pre_transform);
 
         self.device.bind_graphics_descriptor_sets(
             command_buffer,

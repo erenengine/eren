@@ -157,6 +157,10 @@ impl Surface {
             physical_device.query_extent_and_transform(window_width, window_height)?;
         let present_mode = physical_device.preferred_present_mode;
 
+        log::info!("Surface format: {:#?}", surface_format);
+        log::info!("Swapchain extent: {:#?}", swapchain_extent);
+        log::info!("Present mode: {:#?}", present_mode);
+
         let mut swapchain_info = vk::SwapchainCreateInfoKHR::default()
             .surface(self.handle)
             .min_image_count(physical_device.min_swapchain_image_count)

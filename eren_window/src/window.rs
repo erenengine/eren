@@ -132,6 +132,8 @@ impl<E: WindowEventHandler> WindowLifecycle<E> {
 
 impl<E: WindowEventHandler> ApplicationHandler<E> for WindowLifecycle<E> {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+        log::debug!("Window resumed");
+
         if self.event_handler.is_some() {
             return;
         }
@@ -250,6 +252,8 @@ impl<E: WindowEventHandler> ApplicationHandler<E> for WindowLifecycle<E> {
     }
 
     fn suspended(&mut self, _: &ActiveEventLoop) {
+        log::debug!("Window suspended");
+
         self.event_handler = None;
     }
 }

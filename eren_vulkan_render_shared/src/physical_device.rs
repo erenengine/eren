@@ -448,6 +448,10 @@ impl PhysicalDevice {
             surface_info.capabilities.current_extent
         );
         log::info!(
+            "Current transform: {:#?}",
+            surface_info.capabilities.current_transform
+        );
+        log::info!(
             "Min extent: {:#?}",
             surface_info.capabilities.min_image_extent
         );

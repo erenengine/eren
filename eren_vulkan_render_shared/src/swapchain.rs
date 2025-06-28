@@ -19,6 +19,7 @@ pub struct Swapchain {
 
     pub window_width: u32,
     pub window_height: u32,
+    pub pre_transform: vk::SurfaceTransformFlagsKHR,
     pub image_len: usize,
 }
 
@@ -103,6 +104,7 @@ impl Swapchain {
 
             window_width,
             window_height,
+            pre_transform: swapchain_info.pre_transform,
             image_len: images.len(),
         })
     }

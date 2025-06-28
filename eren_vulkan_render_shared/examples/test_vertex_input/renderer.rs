@@ -106,6 +106,7 @@ impl TestRenderer {
             frame_idx,
             self.swapchain.window_width,
             self.swapchain.window_height,
+            self.swapchain.pre_transform,
         );
 
         self.device.end_command_buffer(cmd_buffer)?;
