@@ -4,14 +4,13 @@ use eren_render_shared::{adapter::Adapter, device::Device, instance::Instance, s
 use eren_window::window::{WindowConfig, WindowEventHandler, WindowLifecycle};
 use winit::window::Window;
 
-mod test_vertex_input {
+mod test_vertex_buffer {
     pub mod render_pass;
     pub mod renderer;
-    pub mod ubo;
     pub mod vertex;
 }
 
-use crate::test_vertex_input::renderer::TestRenderer;
+use crate::test_vertex_buffer::renderer::TestRenderer;
 
 pub fn init_logger() {
     #[cfg(target_arch = "wasm32")]
@@ -95,15 +94,7 @@ impl<'a> WindowEventHandler for TestWindowEventHandler<'a> {
     fn on_redraw_requested(&mut self) {
         //log::debug!("Redraw requested");
 
-        let window_size = self.window.inner_size();
-        self.renderer
-            .render(
-                &self.surface,
-                &self.device,
-                window_size.width,
-                window_size.height,
-            )
-            .unwrap();
+        self.renderer.render(&self.surface, &self.device).unwrap();
     }
 }
 

@@ -16,7 +16,7 @@ use eren_vulkan_render_shared::{
 };
 use thiserror::Error;
 
-use crate::test_vertex_input::{ubo::UniformBufferObject, vertex::Vertex};
+use super::{ubo::UniformBufferObject, vertex::Vertex};
 
 const VERT_SHADER_BYTES: &[u8] = include_bytes!("./shaders/shader.vert.spv");
 const FRAG_SHADER_BYTES: &[u8] = include_bytes!("./shaders/shader.frag.spv");

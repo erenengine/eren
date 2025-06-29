@@ -1,6 +1,6 @@
 use eren_render_shared::{device::Device, surface::Surface};
 
-use crate::test_vertex_input::render_pass::TestRenderPass;
+use super::render_pass::TestRenderPass;
 
 pub struct TestRenderer {
     render_pass: TestRenderPass,
@@ -13,13 +13,7 @@ impl TestRenderer {
         }
     }
 
-    pub fn render(
-        &mut self,
-        surface: &Surface,
-        device: &Device,
-        window_width: u32,
-        window_height: u32,
-    ) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self, surface: &Surface, device: &Device) -> Result<(), wgpu::SurfaceError> {
         let output = surface.get_current_texture()?;
         let view = output
             .texture
@@ -29,8 +23,7 @@ impl TestRenderer {
             label: Some("Test Render Encoder"),
         });
 
-        self.render_pass
-            .record_commands(device, &view, &mut encoder, window_width, window_height);
+        self.render_pass.record_commands(&view, &mut encoder);
 
         device.queue.submit(std::iter::once(encoder.finish()));
         output.present();

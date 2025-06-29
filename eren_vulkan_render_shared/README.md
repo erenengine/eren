@@ -22,4 +22,5 @@ RUST_LOG=debug cargo run --example test_physical_device
 RUST_LOG=debug cargo run --example test_device
 RUST_LOG=debug cargo run --example test_pass
 RUST_LOG=debug cargo run --example test_vertext_buffer
+RUST_LOG=debug cargo run --example test_uniform
 ```
