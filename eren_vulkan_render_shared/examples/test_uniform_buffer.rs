@@ -8,7 +8,7 @@ use eren_vulkan_render_shared::{
 use eren_window::window::{WindowConfig, WindowEventHandler, WindowLifecycle};
 use winit::window::Window;
 
-mod test_uniform {
+mod test_uniform_buffer {
     pub mod render_pass;
     pub mod renderer;
     pub mod subpass;
@@ -16,7 +16,7 @@ mod test_uniform {
     pub mod vertex;
 }
 
-use crate::test_uniform::renderer::TestRenderer;
+use crate::test_uniform_buffer::renderer::TestRenderer;
 
 struct TestWindowEventHandler {
     window: Arc<Window>,

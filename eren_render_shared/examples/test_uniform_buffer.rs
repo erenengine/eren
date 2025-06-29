@@ -4,14 +4,14 @@ use eren_render_shared::{adapter::Adapter, device::Device, instance::Instance, s
 use eren_window::window::{WindowConfig, WindowEventHandler, WindowLifecycle};
 use winit::window::Window;
 
-mod test_uniform {
+mod test_uniform_buffer {
     pub mod render_pass;
     pub mod renderer;
     pub mod ubo;
     pub mod vertex;
 }
 
-use crate::test_uniform::renderer::TestRenderer;
+use crate::test_uniform_buffer::renderer::TestRenderer;
 
 pub fn init_logger() {
     #[cfg(target_arch = "wasm32")]
