@@ -43,7 +43,10 @@ impl Adapter {
     pub async fn request_device(
         &self,
     ) -> Result<(wgpu::Device, wgpu::Queue), wgpu::RequestDeviceError> {
+        let required_features = wgpu::Features::PUSH_CONSTANTS;
+
         let mut desc = wgpu::DeviceDescriptor::default();
+        desc.required_features = required_features;
         desc.required_limits = self.handle.limits();
         self.handle.request_device(&desc).await
     }

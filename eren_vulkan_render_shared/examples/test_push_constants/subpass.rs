@@ -355,7 +355,7 @@ impl TestSubpass {
         })
     }
 
-    fn update_model(&self, command_buffer: vk::CommandBuffer) {
+    fn update_push_constants(&self, command_buffer: vk::CommandBuffer) {
         let time = self.start_time.elapsed().as_secs_f32();
 
         // 모델 행렬: Z축 회전
@@ -446,7 +446,7 @@ impl TestSubpass {
             self.combined_buffer.index_offset,
         );
 
-        self.update_model(command_buffer);
+        self.update_push_constants(command_buffer);
         self.update_uniform_buffer(frame_idx, window_width, window_height, pre_transform);
 
         self.device.bind_graphics_descriptor_sets(

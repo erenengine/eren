@@ -5,6 +5,7 @@ RUST_LOG=debug cargo run --example test_pass
 RUST_LOG=debug cargo run --example test_vertex_buffer
 RUST_LOG=debug cargo run --example test_index_buffer
 RUST_LOG=debug cargo run --example test_uniform
+RUST_LOG=debug cargo run --example test_push_constants
 ```
 
 ```
@@ -25,4 +26,7 @@ wasm-bindgen --out-dir ./examples/wasm --target web ./target/wasm32-unknown-unkn
 
 cargo build --example test_uniform --target wasm32-unknown-unknown
 wasm-bindgen --out-dir ./examples/wasm --target web ./target/wasm32-unknown-unknown/debug/examples/test_uniform.wasm
+
+cargo build --example test_push_constants --target wasm32-unknown-unknown
+wasm-bindgen --out-dir ./examples/wasm --target web ./target/wasm32-unknown-unknown/debug/examples/test_push_constants.wasm
 ```
