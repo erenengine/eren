@@ -13,6 +13,15 @@ glslc examples/test_pass/shaders/shader.frag -o examples/test_pass/shaders/shade
 
 glslc examples/test_vertex_buffer/shaders/shader.vert -o examples/test_vertex_buffer/shaders/shader.vert.spv
 glslc examples/test_vertex_buffer/shaders/shader.frag -o examples/test_vertex_buffer/shaders/shader.frag.spv
+
+glslc examples/test_index_buffer/shaders/shader.vert -o examples/test_index_buffer/shaders/shader.vert.spv
+glslc examples/test_index_buffer/shaders/shader.frag -o examples/test_index_buffer/shaders/shader.frag.spv
+
+glslc examples/test_uniform/shaders/shader.vert -o examples/test_uniform/shaders/shader.vert.spv
+glslc examples/test_uniform/shaders/shader.frag -o examples/test_uniform/shaders/shader.frag.spv
+
+glslc examples/test_push_constants/shaders/shader.vert -o examples/test_push_constants/shaders/shader.vert.spv
+glslc examples/test_push_constants/shaders/shader.frag -o examples/test_push_constants/shaders/shader.frag.spv
 ```
 
 ## 테스트
@@ -24,4 +33,5 @@ RUST_LOG=debug cargo run --example test_pass
 RUST_LOG=debug cargo run --example test_vertex_buffer
 RUST_LOG=debug cargo run --example test_index_buffer
 RUST_LOG=debug cargo run --example test_uniform
+RUST_LOG=debug cargo run --example test_push_constants
 ```

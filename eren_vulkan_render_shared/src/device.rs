@@ -1095,6 +1095,25 @@ impl Device {
         }
     }
 
+    pub fn push_constants(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        pipeline_layout: vk::PipelineLayout,
+        stage_flags: vk::ShaderStageFlags,
+        offset: u32,
+        data: &[u8],
+    ) {
+        unsafe {
+            self.handle.cmd_push_constants(
+                command_buffer,
+                pipeline_layout,
+                stage_flags,
+                offset,
+                data,
+            );
+        }
+    }
+
     pub fn draw(
         &self,
         command_buffer: vk::CommandBuffer,
