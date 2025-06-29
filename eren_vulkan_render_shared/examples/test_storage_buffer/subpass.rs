@@ -12,11 +12,10 @@ use eren_vulkan_render_shared::{
         PipelineLayoutCreationError,
     },
     frame::MAX_FRAMES_IN_FLIGHT,
-    pipeline::graphics::GraphicsPipeline,
 };
 use thiserror::Error;
 
-use super::{sbo::StorageBufferObject, vertex::Vertex};
+use super::{ssbo::StorageBufferObject, vertex::Vertex};
 
 const VERT_SHADER_BYTES: &[u8] = include_bytes!("./shaders/shader.vert.spv");
 const FRAG_SHADER_BYTES: &[u8] = include_bytes!("./shaders/shader.frag.spv");
@@ -130,7 +129,7 @@ pub struct TestSubpass {
 
     descriptor_set_layout: vk::DescriptorSetLayout,
     pipeline_layout: vk::PipelineLayout,
-    pipeline: GraphicsPipeline,
+    pipeline: vk::Pipeline,
 
     combined_buffer: CombinedBuffer,
     storage_buffers: Vec<vk::Buffer>,
@@ -177,16 +176,15 @@ impl TestSubpass {
         render_pass: vk::RenderPass,
         subpass_index: u32,
     ) -> Result<Self, TestSubpassInitializationError> {
-        let ubo_layout_binding = vk::DescriptorSetLayoutBinding::default()
+        let ssbo_layout_binding = vk::DescriptorSetLayoutBinding::default()
             .binding(0)
             .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
             .descriptor_count(1)
             .stage_flags(vk::ShaderStageFlags::VERTEX);
 
-        let descriptor_set_layout = device.create_descriptor_set_layout(&[ubo_layout_binding])?;
+        let descriptor_set_layout = device.create_descriptor_set_layout(&[ssbo_layout_binding])?;
 
-        let set_layouts = [descriptor_set_layout];
-        let pipeline_layout = device.create_pipeline_layout(&set_layouts, &[])?;
+        let pipeline_layout = device.create_pipeline_layout(&[descriptor_set_layout], &[])?;
 
         let binding_descriptions = [Vertex::get_binding_description()];
         let attribute_descriptions = Vertex::get_attribute_descriptions();
@@ -269,8 +267,7 @@ impl TestSubpass {
             .render_pass(render_pass)
             .subpass(subpass_index);
 
-        let pipeline = GraphicsPipeline::new(
-            device.clone(),
+        let pipeline = device.create_graphics_pipeline(
             pipeline_info,
             Some(VERT_SHADER_BYTES),
             Some(FRAG_SHADER_BYTES),
@@ -387,12 +384,12 @@ impl TestSubpass {
         };
         proj = correction * proj;
 
-        let sbo = StorageBufferObject { model, view, proj };
+        let ssbo = StorageBufferObject { model, view, proj };
 
         // 메모리에 데이터 복사
         unsafe {
             let data_ptr = self.storage_buffers_mapped[frame_idx];
-            std::ptr::copy_nonoverlapping(&sbo, data_ptr as *mut StorageBufferObject, 1);
+            std::ptr::copy_nonoverlapping(&ssbo, data_ptr as *mut StorageBufferObject, 1);
         }
     }
 
@@ -404,7 +401,8 @@ impl TestSubpass {
         window_height: u32,
         pre_transform: vk::SurfaceTransformFlagsKHR,
     ) {
-        self.pipeline.bind_pipeline(command_buffer);
+        self.device
+            .bind_graphics_pipeline(command_buffer, self.pipeline);
 
         self.device.bind_vertex_buffers(
             command_buffer,
@@ -447,6 +445,7 @@ impl Drop for TestSubpass {
 
         self.device
             .destroy_buffer_with_memory(self.combined_buffer.buffer, self.combined_buffer.memory);
+        self.device.destroy_pipeline(self.pipeline);
         self.device.destroy_pipeline_layout(self.pipeline_layout);
         self.device
             .destroy_descriptor_set_layout(self.descriptor_set_layout);

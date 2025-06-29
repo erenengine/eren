@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
 use ash::vk;
-use eren_vulkan_render_shared::{
-    device::{Device, GraphicsPipelineCreationError, PipelineLayoutCreationError},
-    pipeline::graphics::GraphicsPipeline,
+use eren_vulkan_render_shared::device::{
+    Device, GraphicsPipelineCreationError, PipelineLayoutCreationError,
 };
 use thiserror::Error;
 
@@ -13,7 +12,7 @@ const FRAG_SHADER_BYTES: &[u8] = include_bytes!("./shaders/shader.frag.spv");
 pub struct TestSubpass {
     device: Arc<Device>,
     pipeline_layout: vk::PipelineLayout,
-    pipeline: GraphicsPipeline,
+    pipeline: vk::Pipeline,
 }
 
 #[derive(Debug, Error)]
@@ -112,8 +111,7 @@ impl TestSubpass {
             .render_pass(render_pass)
             .subpass(subpass_index);
 
-        let pipeline = GraphicsPipeline::new(
-            device.clone(),
+        let pipeline = device.create_graphics_pipeline(
             pipeline_info,
             Some(VERT_SHADER_BYTES),
             Some(FRAG_SHADER_BYTES),
@@ -127,7 +125,9 @@ impl TestSubpass {
     }
 
     pub fn record_commands(&self, command_buffer: vk::CommandBuffer) {
-        self.pipeline.bind_pipeline(command_buffer);
+        self.device
+            .bind_graphics_pipeline(command_buffer, self.pipeline);
+
         self.device.draw(command_buffer, 3, 1, 0, 0);
     }
 }
@@ -135,6 +135,7 @@ impl TestSubpass {
 impl Drop for TestSubpass {
     fn drop(&mut self) {
         self.device.wait_idle();
+        self.device.destroy_pipeline(self.pipeline);
         self.device.destroy_pipeline_layout(self.pipeline_layout);
     }
 }

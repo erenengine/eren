@@ -7,7 +7,7 @@ use winit::window::Window;
 mod test_storage_buffer {
     pub mod render_pass;
     pub mod renderer;
-    pub mod sbo;
+    pub mod ssbo;
     pub mod vertex;
 }
 

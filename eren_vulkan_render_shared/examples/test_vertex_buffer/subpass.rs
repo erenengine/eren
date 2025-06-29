@@ -11,7 +11,6 @@ use eren_vulkan_render_shared::{
         GraphicsPipelineCreationError, MapMemoryError, MemoryUploadSlice,
         PipelineLayoutCreationError,
     },
-    pipeline::graphics::GraphicsPipeline,
 };
 use thiserror::Error;
 
@@ -103,7 +102,7 @@ pub struct TestSubpass {
     device: Arc<Device>,
 
     pipeline_layout: vk::PipelineLayout,
-    pipeline: GraphicsPipeline,
+    pipeline: vk::Pipeline,
 
     vertex_buffer: vk::Buffer,
     vertex_buffer_memory: vk::DeviceMemory,
@@ -227,8 +226,7 @@ impl TestSubpass {
             .render_pass(render_pass)
             .subpass(subpass_index);
 
-        let pipeline = GraphicsPipeline::new(
-            device.clone(),
+        let pipeline = device.create_graphics_pipeline(
             pipeline_info,
             Some(VERT_SHADER_BYTES),
             Some(FRAG_SHADER_BYTES),
@@ -248,7 +246,8 @@ impl TestSubpass {
     }
 
     pub fn record_commands(&mut self, command_buffer: vk::CommandBuffer) {
-        self.pipeline.bind_pipeline(command_buffer);
+        self.device
+            .bind_graphics_pipeline(command_buffer, self.pipeline);
 
         self.device
             .bind_vertex_buffers(command_buffer, &[self.vertex_buffer], &[0]);
@@ -264,6 +263,7 @@ impl Drop for TestSubpass {
 
         self.device
             .destroy_buffer_with_memory(self.vertex_buffer, self.vertex_buffer_memory);
+        self.device.destroy_pipeline(self.pipeline);
         self.device.destroy_pipeline_layout(self.pipeline_layout);
     }
 }

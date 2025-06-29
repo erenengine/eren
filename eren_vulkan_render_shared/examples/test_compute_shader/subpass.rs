@@ -6,34 +6,36 @@ use ash::vk;
 use eren_vulkan_render_shared::{
     command::CommandPool,
     device::{
-        BufferWithMemoryCreationError, CopyCommandBufferError, DescriptorPoolCreationError,
-        DescriptorSetAllocationError, DescriptorSetLayoutCreationError, Device,
-        GraphicsPipelineCreationError, MapMemoryError, MemoryUploadSlice,
-        PipelineLayoutCreationError,
+        BufferWithMemoryCreationError, ComputePipelineCreationError, CopyCommandBufferError,
+        DescriptorPoolCreationError, DescriptorSetAllocationError,
+        DescriptorSetLayoutCreationError, Device, GraphicsPipelineCreationError, MapMemoryError,
+        MemoryUploadSlice, PipelineLayoutCreationError,
     },
+    frame::MAX_FRAMES_IN_FLIGHT,
 };
 use thiserror::Error;
 
-use super::vertex::Vertex;
+use super::{push_constants::ComputePushConstants, ssbo::StorageBufferObject, vertex::Vertex};
 
+const COMP_SHADER_BYTES: &[u8] = include_bytes!("./shaders/shader.comp.spv");
 const VERT_SHADER_BYTES: &[u8] = include_bytes!("./shaders/shader.vert.spv");
 const FRAG_SHADER_BYTES: &[u8] = include_bytes!("./shaders/shader.frag.spv");
 
 const TEST_VERTICES: [Vertex; 4] = [
     Vertex {
-        pos: Vec2::new(-0.5, 0.5),
+        pos: Vec2::new(-0.5, -0.5),
         color: Vec3::new(1.0, 0.0, 0.0),
     },
     Vertex {
-        pos: Vec2::new(0.5, 0.5),
+        pos: Vec2::new(0.5, -0.5),
         color: Vec3::new(0.0, 1.0, 0.0),
     },
     Vertex {
-        pos: Vec2::new(0.5, -0.5),
+        pos: Vec2::new(0.5, 0.5),
         color: Vec3::new(0.0, 0.0, 1.0),
     },
     Vertex {
-        pos: Vec2::new(-0.5, -0.5),
+        pos: Vec2::new(-0.5, 0.5),
         color: Vec3::new(1.0, 1.0, 1.0),
     },
 ];
@@ -126,10 +128,21 @@ pub fn create_combined_buffer(
 pub struct TestSubpass {
     device: Arc<Device>,
 
-    pipeline_layout: vk::PipelineLayout,
-    pipeline: vk::Pipeline,
+    descriptor_set_layout: vk::DescriptorSetLayout,
+
+    compute_pipeline_layout: vk::PipelineLayout,
+    compute_pipeline: vk::Pipeline,
+
+    graphics_pipeline_layout: vk::PipelineLayout,
+    graphics_pipeline: vk::Pipeline,
 
     combined_buffer: CombinedBuffer,
+    storage_buffers: Vec<vk::Buffer>,
+    storage_buffers_memory: Vec<vk::DeviceMemory>,
+    descriptor_pool: vk::DescriptorPool,
+    descriptor_sets: Vec<vk::DescriptorSet>,
+
+    start_time: std::time::Instant,
 }
 
 #[derive(Debug, Error)]
@@ -139,6 +152,9 @@ pub enum TestSubpassInitializationError {
 
     #[error("Failed to create pipeline layout: {0}")]
     CreatePipelineLayout(#[from] PipelineLayoutCreationError),
+
+    #[error("Failed to create compute pipeline: {0}")]
+    CreateComputePipeline(#[from] ComputePipelineCreationError),
 
     #[error("Failed to create graphics pipeline: {0}")]
     CreateGraphicsPipeline(#[from] GraphicsPipelineCreationError),
@@ -167,7 +183,30 @@ impl TestSubpass {
         render_pass: vk::RenderPass,
         subpass_index: u32,
     ) -> Result<Self, TestSubpassInitializationError> {
-        let pipeline_layout = device.create_pipeline_layout(&[], &[])?;
+        let ssbo_layout_binding = vk::DescriptorSetLayoutBinding::default()
+            .binding(0)
+            .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
+            .descriptor_count(1)
+            .stage_flags(vk::ShaderStageFlags::COMPUTE | vk::ShaderStageFlags::VERTEX);
+
+        let descriptor_set_layout = device.create_descriptor_set_layout(&[ssbo_layout_binding])?;
+
+        // push constant range 정의
+        let push_constant_range = vk::PushConstantRange::default()
+            .stage_flags(vk::ShaderStageFlags::COMPUTE)
+            .offset(0)
+            .size(std::mem::size_of::<ComputePushConstants>() as u32);
+
+        // compute pipeline layout: 기존 descriptor_set_layout 재사용
+        let compute_pipeline_layout =
+            device.create_pipeline_layout(&[descriptor_set_layout], &[push_constant_range])?;
+
+        // 컴퓨트 파이프라인 생성
+        let create_info = vk::ComputePipelineCreateInfo::default().layout(compute_pipeline_layout);
+        let compute_pipeline = device.create_compute_pipeline(create_info, COMP_SHADER_BYTES)?;
+
+        let graphics_pipeline_layout =
+            device.create_pipeline_layout(&[descriptor_set_layout], &[])?;
 
         let binding_descriptions = [Vertex::get_binding_description()];
         let attribute_descriptions = Vertex::get_attribute_descriptions();
@@ -246,11 +285,11 @@ impl TestSubpass {
             .rasterization_state(&rasterizer)
             .multisample_state(&multisampling)
             .color_blend_state(&color_blending)
-            .layout(pipeline_layout)
+            .layout(graphics_pipeline_layout)
             .render_pass(render_pass)
             .subpass(subpass_index);
 
-        let pipeline = device.create_graphics_pipeline(
+        let graphics_pipeline = device.create_graphics_pipeline(
             pipeline_info,
             Some(VERT_SHADER_BYTES),
             Some(FRAG_SHADER_BYTES),
@@ -258,19 +297,129 @@ impl TestSubpass {
 
         let combined_buffer = create_combined_buffer(&device, command_pool)?;
 
+        let buffer_size = std::mem::size_of::<StorageBufferObject>() as vk::DeviceSize;
+
+        let mut storage_buffers = Vec::new();
+        let mut storage_buffers_memory = Vec::new();
+
+        storage_buffers.resize(MAX_FRAMES_IN_FLIGHT, vk::Buffer::null());
+        storage_buffers_memory.resize(MAX_FRAMES_IN_FLIGHT, vk::DeviceMemory::null());
+
+        let descriptor_pool = device.create_descriptor_pool(
+            MAX_FRAMES_IN_FLIGHT as u32,
+            &[vk::DescriptorPoolSize {
+                ty: vk::DescriptorType::STORAGE_BUFFER,
+                descriptor_count: MAX_FRAMES_IN_FLIGHT as u32,
+            }],
+        )?;
+
+        let descriptor_set_layouts = vec![descriptor_set_layout; MAX_FRAMES_IN_FLIGHT];
+        let descriptor_sets =
+            device.allocate_descriptor_sets(descriptor_pool, &descriptor_set_layouts)?;
+
+        for i in 0..MAX_FRAMES_IN_FLIGHT {
+            let (buffer, memory) = device.create_buffer_with_memory(
+                buffer_size,
+                vk::BufferUsageFlags::STORAGE_BUFFER,
+                vk::MemoryPropertyFlags::DEVICE_LOCAL,
+            )?;
+
+            storage_buffers[i] = buffer;
+            storage_buffers_memory[i] = memory;
+
+            let buffer_info = vk::DescriptorBufferInfo {
+                buffer,
+                offset: 0,
+                range: std::mem::size_of::<StorageBufferObject>() as vk::DeviceSize,
+            };
+
+            let buffer_infos = [buffer_info];
+            let descriptor_write = vk::WriteDescriptorSet::default()
+                .dst_set(descriptor_sets[i])
+                .dst_binding(0)
+                .dst_array_element(0)
+                .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
+                .buffer_info(&buffer_infos);
+
+            device.write_descriptor_sets(&[descriptor_write]);
+        }
+
         Ok(Self {
             device,
 
-            pipeline_layout,
-            pipeline,
+            descriptor_set_layout,
+
+            compute_pipeline_layout,
+            compute_pipeline,
+
+            graphics_pipeline_layout,
+            graphics_pipeline,
 
             combined_buffer,
+            storage_buffers,
+            storage_buffers_memory,
+            descriptor_pool,
+            descriptor_sets,
+
+            start_time: std::time::Instant::now(),
         })
     }
 
-    pub fn record_commands(&mut self, command_buffer: vk::CommandBuffer) {
+    pub fn record_compute_commands(
+        &mut self,
+        command_buffer: vk::CommandBuffer,
+        frame_idx: usize,
+        window_width: u32,
+        window_height: u32,
+        pre_transform: vk::SurfaceTransformFlagsKHR,
+    ) {
+        let time = self.start_time.elapsed().as_secs_f32();
+        let aspect_ratio = window_width as f32 / window_height as f32;
+        let push_constants = ComputePushConstants {
+            time,
+            aspect_ratio,
+            pre_transform: pre_transform.as_raw(),
+            _padding: 0,
+        };
+
+        // compute 바인딩
         self.device
-            .bind_graphics_pipeline(command_buffer, self.pipeline);
+            .bind_compute_pipeline(command_buffer, self.compute_pipeline);
+
+        let push_constants_bytes = unsafe {
+            std::slice::from_raw_parts(
+                &push_constants as *const ComputePushConstants as *const u8,
+                std::mem::size_of::<ComputePushConstants>(),
+            )
+        };
+
+        // push constants
+        self.device.push_constants(
+            command_buffer,
+            self.compute_pipeline_layout,
+            vk::ShaderStageFlags::COMPUTE,
+            0,
+            push_constants_bytes,
+        );
+
+        // descriptor set
+        self.device.bind_compute_descriptor_sets(
+            command_buffer,
+            self.compute_pipeline_layout,
+            &[self.descriptor_sets[frame_idx]],
+        );
+
+        // dispatch
+        self.device.dispatch(command_buffer, 1, 1, 1);
+    }
+
+    pub fn record_graphics_commands(
+        &mut self,
+        command_buffer: vk::CommandBuffer,
+        frame_idx: usize,
+    ) {
+        self.device
+            .bind_graphics_pipeline(command_buffer, self.graphics_pipeline);
 
         self.device.bind_vertex_buffers(
             command_buffer,
@@ -285,6 +434,12 @@ impl TestSubpass {
             self.combined_buffer.index_offset,
         );
 
+        self.device.bind_graphics_descriptor_sets(
+            command_buffer,
+            self.graphics_pipeline_layout,
+            &[self.descriptor_sets[frame_idx]],
+        );
+
         self.device
             .draw_indexed(command_buffer, self.combined_buffer.index_count, 1, 0, 0, 0);
     }
@@ -294,9 +449,27 @@ impl Drop for TestSubpass {
     fn drop(&mut self) {
         self.device.wait_idle();
 
+        self.device.destroy_descriptor_pool(self.descriptor_pool);
+
+        for i in 0..MAX_FRAMES_IN_FLIGHT {
+            self.device.destroy_buffer_with_memory(
+                self.storage_buffers[i],
+                self.storage_buffers_memory[i],
+            );
+        }
+
         self.device
             .destroy_buffer_with_memory(self.combined_buffer.buffer, self.combined_buffer.memory);
-        self.device.destroy_pipeline(self.pipeline);
-        self.device.destroy_pipeline_layout(self.pipeline_layout);
+
+        self.device.destroy_pipeline(self.compute_pipeline);
+        self.device
+            .destroy_pipeline_layout(self.compute_pipeline_layout);
+
+        self.device.destroy_pipeline(self.graphics_pipeline);
+        self.device
+            .destroy_pipeline_layout(self.graphics_pipeline_layout);
+
+        self.device
+            .destroy_descriptor_set_layout(self.descriptor_set_layout);
     }
 }

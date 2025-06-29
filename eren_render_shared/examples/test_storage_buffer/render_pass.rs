@@ -1,7 +1,7 @@
 use eren_render_shared::device::Device;
 
 use super::{
-    sbo::StorageBufferObject,
+    ssbo::StorageBufferObject,
     vertex::{VERTEX_DESC, Vertex},
 };
 use glam::{Vec2, Vec3};

@@ -12,7 +12,6 @@ use eren_vulkan_render_shared::{
         PipelineLayoutCreationError,
     },
     frame::MAX_FRAMES_IN_FLIGHT,
-    pipeline::graphics::GraphicsPipeline,
 };
 use thiserror::Error;
 
@@ -130,7 +129,7 @@ pub struct TestSubpass {
 
     descriptor_set_layout: vk::DescriptorSetLayout,
     pipeline_layout: vk::PipelineLayout,
-    pipeline: GraphicsPipeline,
+    pipeline: vk::Pipeline,
 
     combined_buffer: CombinedBuffer,
     uniform_buffers: Vec<vk::Buffer>,
@@ -185,8 +184,6 @@ impl TestSubpass {
 
         let descriptor_set_layout = device.create_descriptor_set_layout(&[ubo_layout_binding])?;
 
-        let set_layouts = [descriptor_set_layout];
-
         let push_constant_range = vk::PushConstantRange {
             stage_flags: vk::ShaderStageFlags::VERTEX,
             offset: 0,
@@ -194,7 +191,7 @@ impl TestSubpass {
         };
 
         let pipeline_layout =
-            device.create_pipeline_layout(&set_layouts, &[push_constant_range])?;
+            device.create_pipeline_layout(&[descriptor_set_layout], &[push_constant_range])?;
 
         let binding_descriptions = [Vertex::get_binding_description()];
         let attribute_descriptions = Vertex::get_attribute_descriptions();
@@ -277,8 +274,7 @@ impl TestSubpass {
             .render_pass(render_pass)
             .subpass(subpass_index);
 
-        let pipeline = GraphicsPipeline::new(
-            device.clone(),
+        let pipeline = device.create_graphics_pipeline(
             pipeline_info,
             Some(VERT_SHADER_BYTES),
             Some(FRAG_SHADER_BYTES),
@@ -431,7 +427,8 @@ impl TestSubpass {
         window_height: u32,
         pre_transform: vk::SurfaceTransformFlagsKHR,
     ) {
-        self.pipeline.bind_pipeline(command_buffer);
+        self.device
+            .bind_graphics_pipeline(command_buffer, self.pipeline);
 
         self.device.bind_vertex_buffers(
             command_buffer,
@@ -475,6 +472,7 @@ impl Drop for TestSubpass {
 
         self.device
             .destroy_buffer_with_memory(self.combined_buffer.buffer, self.combined_buffer.memory);
+        self.device.destroy_pipeline(self.pipeline);
         self.device.destroy_pipeline_layout(self.pipeline_layout);
         self.device
             .destroy_descriptor_set_layout(self.descriptor_set_layout);

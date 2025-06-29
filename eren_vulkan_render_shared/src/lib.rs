@@ -5,7 +5,6 @@ pub mod device;
 pub mod frame;
 pub mod instance;
 pub mod physical_device;
-pub mod pipeline;
 pub mod subpass;
 pub mod surface;
 pub mod swapchain;

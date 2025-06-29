@@ -855,6 +855,15 @@ impl Device {
 pub struct PipelineLayoutCreationError(String);
 
 #[derive(Debug, Error)]
+pub enum ComputePipelineCreationError {
+    #[error("Failed to create shader module: {0}")]
+    CreateShaderModule(#[from] ShaderModuleCreationError),
+
+    #[error("Failed to create compute pipeline: {0}")]
+    CreateComputePipeline(String),
+}
+
+#[derive(Debug, Error)]
 pub enum GraphicsPipelineCreationError {
     #[error("Failed to create shader module: {0}")]
     CreateShaderModule(#[from] ShaderModuleCreationError),
@@ -884,6 +893,37 @@ impl Device {
         unsafe {
             self.handle.destroy_pipeline_layout(pipeline_layout, None);
         }
+    }
+
+    pub fn create_compute_pipeline(
+        &self,
+        create_info: vk::ComputePipelineCreateInfo,
+        compute_shader_bytes: &[u8],
+    ) -> Result<vk::Pipeline, ComputePipelineCreationError> {
+        let compute_shader_module = self.create_shader_module(compute_shader_bytes)?;
+
+        let main_function_name = std::ffi::CString::new("main").unwrap();
+
+        let shader_stage = vk::PipelineShaderStageCreateInfo::default()
+            .stage(vk::ShaderStageFlags::COMPUTE)
+            .module(compute_shader_module)
+            .name(&main_function_name);
+
+        let pipeline = unsafe {
+            self.handle
+                .create_compute_pipelines(
+                    vk::PipelineCache::null(),
+                    &[create_info.stage(shader_stage)],
+                    None,
+                )
+                .map_err(|(_, e)| {
+                    ComputePipelineCreationError::CreateComputePipeline(e.to_string())
+                })?
+        }[0];
+
+        self.destroy_shader_module(compute_shader_module);
+
+        Ok(pipeline)
     }
 
     pub fn create_graphics_pipeline(
@@ -952,15 +992,24 @@ impl Device {
         }
     }
 
-    pub fn bind_pipeline(
+    pub fn bind_compute_pipeline(&self, command_buffer: vk::CommandBuffer, pipeline: vk::Pipeline) {
+        unsafe {
+            self.handle
+                .cmd_bind_pipeline(command_buffer, vk::PipelineBindPoint::COMPUTE, pipeline);
+        }
+    }
+
+    pub fn bind_graphics_pipeline(
         &self,
         command_buffer: vk::CommandBuffer,
-        pipeline_bind_point: vk::PipelineBindPoint,
         pipeline: vk::Pipeline,
     ) {
         unsafe {
-            self.handle
-                .cmd_bind_pipeline(command_buffer, pipeline_bind_point, pipeline);
+            self.handle.cmd_bind_pipeline(
+                command_buffer,
+                vk::PipelineBindPoint::GRAPHICS,
+                pipeline,
+            );
         }
     }
 }
@@ -1041,6 +1090,38 @@ impl Device {
     pub fn write_descriptor_sets(&self, descriptor_writes: &[vk::WriteDescriptorSet]) {
         unsafe {
             self.handle.update_descriptor_sets(descriptor_writes, &[]);
+        }
+    }
+}
+
+/// --- 컴퓨팅 관련 기능들 ---
+
+#[derive(Debug, Error)]
+#[error("Failed to submit compute commands: {0}")]
+pub struct SubmitComputeCommandsError(String);
+
+impl Device {
+    pub fn bind_compute_descriptor_sets(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        pipeline_layout: vk::PipelineLayout,
+        descriptor_sets: &[vk::DescriptorSet],
+    ) {
+        unsafe {
+            self.handle.cmd_bind_descriptor_sets(
+                command_buffer,
+                vk::PipelineBindPoint::COMPUTE,
+                pipeline_layout,
+                0,
+                descriptor_sets,
+                &[],
+            );
+        }
+    }
+
+    pub fn dispatch(&self, command_buffer: vk::CommandBuffer, x: u32, y: u32, z: u32) {
+        unsafe {
+            self.handle.cmd_dispatch(command_buffer, x, y, z);
         }
     }
 }
