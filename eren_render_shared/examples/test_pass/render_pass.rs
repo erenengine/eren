@@ -46,7 +46,8 @@ impl TestRenderPass {
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             }),
             primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleStrip,
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
                 ..Default::default()
             },
             depth_stencil: None,

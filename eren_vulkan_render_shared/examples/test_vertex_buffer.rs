@@ -8,14 +8,14 @@ use eren_vulkan_render_shared::{
 use eren_window::window::{WindowConfig, WindowEventHandler, WindowLifecycle};
 use winit::window::Window;
 
-mod test_vertext_buffer {
+mod test_vertex_buffer {
     pub mod render_pass;
     pub mod renderer;
     pub mod subpass;
     pub mod vertex;
 }
 
-use crate::test_vertext_buffer::renderer::TestRenderer;
+use crate::test_vertex_buffer::renderer::TestRenderer;
 
 struct TestWindowEventHandler {
     window: Arc<Window>,

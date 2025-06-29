@@ -12,32 +12,22 @@ const CLEAR_COLOR: wgpu::Color = wgpu::Color {
     a: 1.0,
 };
 
-const TEST_VERTICES: [Vertex; 6] = [
-    // 첫 번째 삼각형 (좌상단, 우상단, 우하단)
+const TEST_VERTICES: [Vertex; 4] = [
     Vertex {
-        pos: Vec2::new(-0.5, 0.5),
+        pos: Vec2::new(-0.5, -0.5),
         color: Vec3::new(1.0, 0.0, 0.0),
     },
     Vertex {
-        pos: Vec2::new(0.5, 0.5),
+        pos: Vec2::new(0.5, -0.5),
         color: Vec3::new(0.0, 1.0, 0.0),
     },
     Vertex {
-        pos: Vec2::new(0.5, -0.5),
+        pos: Vec2::new(0.5, 0.5),
         color: Vec3::new(0.0, 0.0, 1.0),
-    },
-    // 두 번째 삼각형 (우하단, 좌하단, 좌상단)
-    Vertex {
-        pos: Vec2::new(0.5, -0.5),
-        color: Vec3::new(0.0, 0.0, 1.0),
-    },
-    Vertex {
-        pos: Vec2::new(-0.5, -0.5),
-        color: Vec3::new(1.0, 1.0, 1.0),
     },
     Vertex {
         pos: Vec2::new(-0.5, 0.5),
-        color: Vec3::new(1.0, 0.0, 0.0),
+        color: Vec3::new(1.0, 1.0, 1.0),
     },
 ];
 
@@ -63,9 +53,86 @@ fn create_vertex_buffer(device: &Device) -> wgpu::Buffer {
     buffer
 }
 
+const TEST_INDICES: [u16; 6] = [0, 1, 2, 2, 3, 0];
+
+fn create_index_buffer(device: &Device) -> wgpu::Buffer {
+    let index_size = (std::mem::size_of::<u16>() * TEST_INDICES.len()) as wgpu::BufferAddress;
+
+    let buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("Test Buffer"),
+        size: index_size,
+        usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
+
+    let index_bytes = unsafe {
+        std::slice::from_raw_parts(
+            TEST_INDICES.as_ptr() as *const u8,
+            TEST_INDICES.len() * std::mem::size_of::<u16>(),
+        )
+    };
+
+    device.queue.write_buffer(&buffer, 0, index_bytes);
+
+    buffer
+}
+
+// WebGL에서는 하나의 WebGLBuffer를 gl.ARRAY_BUFFER와 gl.ELEMENT_ARRAY_BUFFER에 동시에 사용할 수 없습니다.
+/*pub struct CombinedBuffer {
+    pub buffer: wgpu::Buffer,
+    pub vertex_offset: wgpu::BufferAddress,
+    pub index_offset: wgpu::BufferAddress,
+    pub index_count: u32,
+}
+
+fn create_combined_buffer(device: &Device) -> CombinedBuffer {
+    let vertex_size = (std::mem::size_of::<Vertex>() * TEST_VERTICES.len()) as wgpu::BufferAddress;
+    let index_size = (std::mem::size_of::<u16>() * TEST_INDICES.len()) as wgpu::BufferAddress;
+
+    let index_offset = (vertex_size + 3) & !3;
+    let total_size = index_offset + index_size;
+
+    let buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("Test Buffer"),
+        size: total_size,
+        usage: wgpu::BufferUsages::VERTEX
+            | wgpu::BufferUsages::INDEX
+            | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
+
+    let vertex_bytes = unsafe {
+        std::slice::from_raw_parts(
+            TEST_VERTICES.as_ptr() as *const u8,
+            TEST_VERTICES.len() * std::mem::size_of::<Vertex>(),
+        )
+    };
+
+    let index_bytes = unsafe {
+        std::slice::from_raw_parts(
+            TEST_INDICES.as_ptr() as *const u8,
+            TEST_INDICES.len() * std::mem::size_of::<u16>(),
+        )
+    };
+
+    device.queue.write_buffer(&buffer, 0, vertex_bytes);
+    device
+        .queue
+        .write_buffer(&buffer, index_offset, index_bytes);
+
+    CombinedBuffer {
+        buffer,
+        vertex_offset: 0,
+        index_offset,
+        index_count: TEST_INDICES.len() as u32,
+    }
+}*/
+
 pub struct TestRenderPass {
     pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
+    index_count: u32,
 }
 
 impl TestRenderPass {
@@ -101,8 +168,8 @@ impl TestRenderPass {
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             }),
             primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                strip_index_format: None,
+                topology: wgpu::PrimitiveTopology::TriangleStrip,
+                strip_index_format: Some(wgpu::IndexFormat::Uint16),
                 ..Default::default()
             },
             depth_stencil: None,
@@ -112,10 +179,13 @@ impl TestRenderPass {
         });
 
         let vertex_buffer = create_vertex_buffer(&device);
+        let index_buffer = create_index_buffer(&device);
 
         Self {
             pipeline,
             vertex_buffer,
+            index_buffer,
+            index_count: TEST_INDICES.len() as u32,
         }
     }
 
@@ -142,7 +212,8 @@ impl TestRenderPass {
         render_pass.set_pipeline(&self.pipeline);
 
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(0..));
+        render_pass.set_index_buffer(self.index_buffer.slice(0..), wgpu::IndexFormat::Uint16);
 
-        render_pass.draw(0..TEST_VERTICES.len() as u32, 0..1);
+        render_pass.draw_indexed(0..self.index_count, 0, 0..1);
     }
 }

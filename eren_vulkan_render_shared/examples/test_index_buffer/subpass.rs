@@ -20,8 +20,7 @@ use super::vertex::Vertex;
 const VERT_SHADER_BYTES: &[u8] = include_bytes!("./shaders/shader.vert.spv");
 const FRAG_SHADER_BYTES: &[u8] = include_bytes!("./shaders/shader.frag.spv");
 
-const TEST_VERTICES: [Vertex; 6] = [
-    // 첫 번째 삼각형 (좌상단, 우상단, 우하단)
+const TEST_VERTICES: [Vertex; 4] = [
     Vertex {
         pos: Vec2::new(-0.5, 0.5),
         color: Vec3::new(1.0, 0.0, 0.0),
@@ -34,20 +33,13 @@ const TEST_VERTICES: [Vertex; 6] = [
         pos: Vec2::new(0.5, -0.5),
         color: Vec3::new(0.0, 0.0, 1.0),
     },
-    // 두 번째 삼각형 (우하단, 좌하단, 좌상단)
-    Vertex {
-        pos: Vec2::new(0.5, -0.5),
-        color: Vec3::new(0.0, 0.0, 1.0),
-    },
     Vertex {
         pos: Vec2::new(-0.5, -0.5),
         color: Vec3::new(1.0, 1.0, 1.0),
     },
-    Vertex {
-        pos: Vec2::new(-0.5, 0.5),
-        color: Vec3::new(1.0, 0.0, 0.0),
-    },
 ];
+
+const TEST_INDICES: [u16; 6] = [0, 1, 2, 2, 3, 0];
 
 #[derive(Debug, Error)]
 pub enum BufferCreationError {
@@ -61,14 +53,26 @@ pub enum BufferCreationError {
     CopyBuffer(#[from] CopyCommandBufferError),
 }
 
-pub fn create_vertex_buffer(
+pub struct CombinedBuffer {
+    pub buffer: vk::Buffer,
+    pub memory: vk::DeviceMemory,
+    pub vertex_offset: vk::DeviceSize,
+    pub index_offset: vk::DeviceSize,
+    pub index_count: u32,
+}
+
+pub fn create_combined_buffer(
     device: &Device,
     command_pool: &CommandPool,
-) -> Result<(vk::Buffer, vk::DeviceMemory), BufferCreationError> {
+) -> Result<CombinedBuffer, BufferCreationError> {
     let vertex_size = (std::mem::size_of::<Vertex>() * TEST_VERTICES.len()) as vk::DeviceSize;
+    let index_size = (std::mem::size_of::<u16>() * TEST_INDICES.len()) as vk::DeviceSize;
+
+    let index_offset = (vertex_size + 3) & !3;
+    let total_size = index_offset + index_size;
 
     let (staging_buffer, staging_memory) = device.create_buffer_with_memory(
-        vertex_size,
+        total_size,
         vk::BufferUsageFlags::TRANSFER_SRC,
         vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
     )?;
@@ -80,23 +84,44 @@ pub fn create_vertex_buffer(
         )
     };
 
-    let slices = [MemoryUploadSlice {
-        src: vertex_bytes,
-        dst_offset: 0,
-    }];
+    let index_bytes = unsafe {
+        std::slice::from_raw_parts(
+            TEST_INDICES.as_ptr() as *const u8,
+            TEST_INDICES.len() * std::mem::size_of::<u16>(),
+        )
+    };
 
-    device.upload_slices_to_memory(staging_memory, vertex_size, &slices)?;
+    let slices = [
+        MemoryUploadSlice {
+            src: vertex_bytes,
+            dst_offset: 0,
+        },
+        MemoryUploadSlice {
+            src: index_bytes,
+            dst_offset: index_offset,
+        },
+    ];
+
+    device.upload_slices_to_memory(staging_memory, total_size, &slices)?;
 
     let (buffer, memory) = device.create_buffer_with_memory(
-        vertex_size,
-        vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::VERTEX_BUFFER,
+        total_size,
+        vk::BufferUsageFlags::TRANSFER_DST
+            | vk::BufferUsageFlags::VERTEX_BUFFER
+            | vk::BufferUsageFlags::INDEX_BUFFER,
         vk::MemoryPropertyFlags::DEVICE_LOCAL,
     )?;
 
-    command_pool.copy_buffer(staging_buffer, buffer, vertex_size)?;
+    command_pool.copy_buffer(staging_buffer, buffer, total_size)?;
     device.destroy_buffer_with_memory(staging_buffer, staging_memory);
 
-    Ok((buffer, memory))
+    Ok(CombinedBuffer {
+        buffer,
+        memory,
+        vertex_offset: 0,
+        index_offset,
+        index_count: TEST_INDICES.len() as u32,
+    })
 }
 
 pub struct TestSubpass {
@@ -105,8 +130,7 @@ pub struct TestSubpass {
     pipeline_layout: vk::PipelineLayout,
     pipeline: GraphicsPipeline,
 
-    vertex_buffer: vk::Buffer,
-    vertex_buffer_memory: vk::DeviceMemory,
+    combined_buffer: CombinedBuffer,
 }
 
 #[derive(Debug, Error)]
@@ -234,7 +258,7 @@ impl TestSubpass {
             Some(FRAG_SHADER_BYTES),
         )?;
 
-        let (vertex_buffer, vertex_buffer_memory) = create_vertex_buffer(&device, command_pool)?;
+        let combined_buffer = create_combined_buffer(&device, command_pool)?;
 
         Ok(Self {
             device,
@@ -242,19 +266,28 @@ impl TestSubpass {
             pipeline_layout,
             pipeline,
 
-            vertex_buffer,
-            vertex_buffer_memory,
+            combined_buffer,
         })
     }
 
     pub fn record_commands(&mut self, command_buffer: vk::CommandBuffer) {
         self.pipeline.bind_pipeline(command_buffer);
 
-        self.device
-            .bind_vertex_buffers(command_buffer, &[self.vertex_buffer], &[0]);
+        self.device.bind_vertex_buffers(
+            command_buffer,
+            &[self.combined_buffer.buffer],
+            &[self.combined_buffer.vertex_offset],
+        );
+
+        self.device.bind_index_buffer(
+            command_buffer,
+            self.combined_buffer.buffer,
+            vk::IndexType::UINT16,
+            self.combined_buffer.index_offset,
+        );
 
         self.device
-            .draw(command_buffer, TEST_VERTICES.len() as u32, 1, 0, 0);
+            .draw_indexed(command_buffer, self.combined_buffer.index_count, 1, 0, 0, 0);
     }
 }
 
@@ -263,7 +296,7 @@ impl Drop for TestSubpass {
         self.device.wait_idle();
 
         self.device
-            .destroy_buffer_with_memory(self.vertex_buffer, self.vertex_buffer_memory);
+            .destroy_buffer_with_memory(self.combined_buffer.buffer, self.combined_buffer.memory);
         self.device.destroy_pipeline_layout(self.pipeline_layout);
     }
 }
