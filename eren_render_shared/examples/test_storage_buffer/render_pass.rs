@@ -138,8 +138,8 @@ pub struct TestRenderPass {
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
     index_count: u32,
-    sbo_buffer: wgpu::Buffer,
-    sbo_bind_group: wgpu::BindGroup,
+    ssbo_buffer: wgpu::Buffer,
+    ssbo_bind_group: wgpu::BindGroup,
     start_time: chrono::DateTime<chrono::Utc>,
 }
 
@@ -150,14 +150,14 @@ impl TestRenderPass {
             source: wgpu::ShaderSource::Wgsl(SHADER_STR.into()),
         });
 
-        let sbo_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        let ssbo_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("SBO Buffer"),
             size: std::mem::size_of::<StorageBufferObject>() as wgpu::BufferAddress,
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 
-        let sbo_bind_group_layout =
+        let ssbo_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("SBO Bind Group Layout"),
                 entries: &[wgpu::BindGroupLayoutEntry {
@@ -172,18 +172,18 @@ impl TestRenderPass {
                 }],
             });
 
-        let sbo_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        let ssbo_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("SBO Bind Group"),
-            layout: &sbo_bind_group_layout,
+            layout: &ssbo_bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
-                resource: sbo_buffer.as_entire_binding(),
+                resource: ssbo_buffer.as_entire_binding(),
             }],
         });
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Test Pipeline Layout"),
-            bind_group_layouts: &[&sbo_bind_group_layout],
+            bind_group_layouts: &[&ssbo_bind_group_layout],
             push_constant_ranges: &[],
         });
 
@@ -225,8 +225,8 @@ impl TestRenderPass {
             vertex_buffer,
             index_buffer,
             index_count: TEST_INDICES.len() as u32,
-            sbo_buffer,
-            sbo_bind_group,
+            ssbo_buffer,
+            ssbo_bind_group,
             start_time: Utc::now(),
         }
     }
@@ -251,17 +251,17 @@ impl TestRenderPass {
         let aspect_ratio = window_width as f32 / window_height as f32;
         let proj = glam::Mat4::perspective_rh(45.0_f32.to_radians(), aspect_ratio, 0.1, 10.0);
 
-        let sbo = StorageBufferObject { model, view, proj };
+        let ssbo = StorageBufferObject { model, view, proj };
 
-        let sbo_bytes = unsafe {
+        let ssbo_bytes = unsafe {
             std::slice::from_raw_parts(
-                &sbo as *const StorageBufferObject as *const u8,
+                &ssbo as *const StorageBufferObject as *const u8,
                 std::mem::size_of::<StorageBufferObject>(),
             )
         };
 
         // 메모리에 데이터 복사
-        device.queue.write_buffer(&self.sbo_buffer, 0, sbo_bytes);
+        device.queue.write_buffer(&self.ssbo_buffer, 0, ssbo_bytes);
     }
 
     pub fn record_commands(
@@ -293,7 +293,7 @@ impl TestRenderPass {
         render_pass.set_index_buffer(self.index_buffer.slice(0..), wgpu::IndexFormat::Uint16);
 
         self.update_storage_buffer(device, window_width, window_height);
-        render_pass.set_bind_group(0, &self.sbo_bind_group, &[]);
+        render_pass.set_bind_group(0, &self.ssbo_bind_group, &[]);
 
         render_pass.draw_indexed(0..self.index_count, 0, 0..1);
     }

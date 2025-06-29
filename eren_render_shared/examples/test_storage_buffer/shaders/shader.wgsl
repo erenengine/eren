@@ -6,7 +6,7 @@ struct StorageBufferObject {
 };
 
 @group(0) @binding(0)
-var<storage, read> sbo : StorageBufferObject;
+var<storage, read> ssbo : StorageBufferObject;
 
 // 정점 입력 구조체
 struct VertexInput {
@@ -25,7 +25,7 @@ fn vs_main(input : VertexInput) -> VertexOutput {
     var output : VertexOutput;
 
     let pos = vec4<f32>(input.inPosition, 0.0, 1.0);
-    output.position = sbo.proj * sbo.view * sbo.model * pos;
+    output.position = ssbo.proj * ssbo.view * ssbo.model * pos;
 
     output.fragColor = input.inColor;
     return output;

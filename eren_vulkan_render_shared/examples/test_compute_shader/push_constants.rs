@@ -1,5 +1,5 @@
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct ComputePushConstants {
     pub time: f32,
     pub aspect_ratio: f32,
