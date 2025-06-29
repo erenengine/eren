@@ -3,7 +3,6 @@ use std::sync::Arc;
 use ash::vk;
 use eren_vulkan_render_shared::{
     device::{Device, FramebufferCreationError, RenderPassCreationError},
-    subpass::get_graphic_color_subpass_desc,
     swapchain::Swapchain,
 };
 use thiserror::Error;
@@ -48,7 +47,9 @@ impl TestRenderPass {
         let color_refs = [color_attachment_ref];
 
         // subpass 0
-        let subpass_desc = get_graphic_color_subpass_desc(&color_refs);
+        let subpass_desc = vk::SubpassDescription2::default()
+            .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
+            .color_attachments(&color_refs);
 
         let render_pass = device.create_render_pass(
             &[color_attachment],

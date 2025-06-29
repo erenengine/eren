@@ -132,6 +132,30 @@ impl Swapchain {
         Ok(framebuffers)
     }
 
+    pub fn create_framebuffers_with_depth_image_view(
+        &self,
+        render_pass: vk::RenderPass,
+        depth_image_view: vk::ImageView,
+    ) -> Result<Vec<vk::Framebuffer>, FramebufferCreationError> {
+        let mut framebuffers = Vec::with_capacity(self.image_views.len());
+
+        for &image_view in self.image_views.iter() {
+            let attachments = [image_view, depth_image_view];
+
+            let framebuffer_info = vk::FramebufferCreateInfo::default()
+                .render_pass(render_pass)
+                .attachments(&attachments)
+                .width(self.window_width)
+                .height(self.window_height)
+                .layers(1);
+
+            let framebuffer = self.device.create_framebuffer(framebuffer_info)?;
+            framebuffers.push(framebuffer);
+        }
+
+        Ok(framebuffers)
+    }
+
     pub fn acquire_next_image(
         &self,
         semaphore: vk::Semaphore,

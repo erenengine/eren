@@ -446,7 +446,7 @@ impl Device {
         Ok((image, memory))
     }
 
-    fn destroy_image_with_memory(&self, image: vk::Image, memory: vk::DeviceMemory) {
+    pub fn destroy_image_with_memory(&self, image: vk::Image, memory: vk::DeviceMemory) {
         unsafe {
             self.handle.destroy_image(image, None);
             self.handle.free_memory(memory, None);
@@ -707,13 +707,6 @@ impl Device {
             .attachment(attachment_index)
             .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
             .aspect_mask(vk::ImageAspectFlags::COLOR)
-    }
-
-    pub fn destroy_attachment(&self, attachment: Attachment) {
-        unsafe {
-            self.handle.destroy_image_view(attachment.view, None);
-            self.destroy_image_with_memory(attachment.image, attachment.memory);
-        }
     }
 }
 
