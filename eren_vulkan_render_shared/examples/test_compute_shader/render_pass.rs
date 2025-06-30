@@ -93,17 +93,11 @@ impl TestRenderPass {
         command_buffer: vk::CommandBuffer,
         swapchain_image_idx: usize,
         frame_idx: usize,
-        window_width: u32,
-        window_height: u32,
+        extent: vk::Extent2D,
         pre_transform: vk::SurfaceTransformFlagsKHR,
     ) {
-        self.subpass.record_compute_commands(
-            command_buffer,
-            frame_idx,
-            window_width,
-            window_height,
-            pre_transform,
-        );
+        self.subpass
+            .record_compute_commands(command_buffer, frame_idx, extent, pre_transform);
 
         self.device.begin_render_pass(
             command_buffer,

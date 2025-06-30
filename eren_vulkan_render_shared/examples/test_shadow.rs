@@ -31,10 +31,10 @@ fn create_ground_plane() -> (Vec<Vertex>, Vec<u16>) {
 
     let positions = [
         // 두 삼각형으로 구성된 정사각형 바닥
-        (vec3(-5.0, 0.0, -5.0), normal),
-        (vec3(5.0, 0.0, -5.0), normal),
-        (vec3(5.0, 0.0, 5.0), normal),
-        (vec3(-5.0, 0.0, 5.0), normal),
+        (vec3(-5.0, -1.0, -5.0), normal),
+        (vec3(5.0, -1.0, -5.0), normal),
+        (vec3(5.0, -1.0, 5.0), normal),
+        (vec3(-5.0, -1.0, 5.0), normal),
     ];
 
     let vertices: Vec<Vertex> = positions
@@ -45,7 +45,7 @@ fn create_ground_plane() -> (Vec<Vertex>, Vec<u16>) {
         })
         .collect();
 
-    let indices: Vec<u16> = vec![0, 1, 2, 2, 3, 0];
+    let indices: Vec<u16> = vec![0, 2, 1, 2, 0, 3];
 
     (vertices, indices)
 }

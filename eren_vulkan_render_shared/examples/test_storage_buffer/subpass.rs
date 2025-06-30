@@ -347,8 +347,7 @@ impl TestSubpass {
     fn update_storage_buffer(
         &mut self,
         frame_idx: usize,
-        window_width: u32,
-        window_height: u32,
+        extent: vk::Extent2D,
         pre_transform: vk::SurfaceTransformFlagsKHR,
     ) {
         let time = self.start_time.elapsed().as_secs_f32();
@@ -363,7 +362,7 @@ impl TestSubpass {
         let view = glam::Mat4::look_at_rh(eye, center, up);
 
         // 프로젝션 행렬
-        let aspect_ratio = window_width as f32 / window_height as f32;
+        let aspect_ratio = extent.width as f32 / extent.height as f32;
         let mut proj = glam::Mat4::perspective_rh(45.0_f32.to_radians(), aspect_ratio, 0.1, 10.0);
 
         // Vulkan에서는 Y축 뒤집기 필요
@@ -397,8 +396,7 @@ impl TestSubpass {
         &mut self,
         command_buffer: vk::CommandBuffer,
         frame_idx: usize,
-        window_width: u32,
-        window_height: u32,
+        extent: vk::Extent2D,
         pre_transform: vk::SurfaceTransformFlagsKHR,
     ) {
         self.device
@@ -417,7 +415,7 @@ impl TestSubpass {
             self.combined_buffer.index_offset,
         );
 
-        self.update_storage_buffer(frame_idx, window_width, window_height, pre_transform);
+        self.update_storage_buffer(frame_idx, extent, pre_transform);
 
         self.device.bind_graphics_descriptor_sets(
             command_buffer,

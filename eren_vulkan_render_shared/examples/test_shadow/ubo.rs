@@ -3,7 +3,6 @@ use glam::{Mat4, Vec3};
 #[repr(C, align(16))]
 #[derive(Clone, Copy, Debug)]
 pub struct ShadowUBO {
-    pub model: Mat4,
     pub light_view_proj: Mat4,
 }
 
@@ -20,5 +19,7 @@ pub struct MainUBO {
 #[derive(Clone, Copy, Debug)]
 pub struct LightUBO {
     pub direction: Vec3,
+    pub _pad1: f32,
     pub color: Vec3,
+    pub _pad2: f32,
 }

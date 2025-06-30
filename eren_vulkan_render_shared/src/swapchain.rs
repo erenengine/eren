@@ -17,8 +17,7 @@ pub struct Swapchain {
     handle: vk::SwapchainKHR,
     image_views: Vec<vk::ImageView>,
 
-    pub window_width: u32,
-    pub window_height: u32,
+    pub extent: vk::Extent2D,
     pub pre_transform: vk::SurfaceTransformFlagsKHR,
     pub image_len: usize,
 }
@@ -102,8 +101,7 @@ impl Swapchain {
             handle,
             image_views,
 
-            window_width,
-            window_height,
+            extent: swapchain_info.image_extent,
             pre_transform: swapchain_info.pre_transform,
             image_len: images.len(),
         })
@@ -121,8 +119,8 @@ impl Swapchain {
             let framebuffer_info = vk::FramebufferCreateInfo::default()
                 .render_pass(render_pass)
                 .attachments(&attachments)
-                .width(self.window_width)
-                .height(self.window_height)
+                .width(self.extent.width)
+                .height(self.extent.height)
                 .layers(1);
 
             let framebuffer = self.device.create_framebuffer(framebuffer_info)?;
@@ -145,8 +143,8 @@ impl Swapchain {
             let framebuffer_info = vk::FramebufferCreateInfo::default()
                 .render_pass(render_pass)
                 .attachments(&attachments)
-                .width(self.window_width)
-                .height(self.window_height)
+                .width(self.extent.width)
+                .height(self.extent.height)
                 .layers(1);
 
             let framebuffer = self.device.create_framebuffer(framebuffer_info)?;

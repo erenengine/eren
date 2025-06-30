@@ -4,10 +4,9 @@ layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec3 inNormal;
 
 layout(set = 0, binding = 0) uniform ShadowUBO {
-    mat4 model;
     mat4 lightViewProj; // 빛의 시점에서의 투영행렬
 } ubo;
 
 void main() {
-    gl_Position = ubo.lightViewProj * ubo.model * vec4(inPosition, 1.0);
+    gl_Position = ubo.lightViewProj * vec4(inPosition, 1.0);
 }

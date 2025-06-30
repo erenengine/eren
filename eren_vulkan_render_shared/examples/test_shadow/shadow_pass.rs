@@ -11,6 +11,7 @@ use eren_vulkan_render_shared::{
     },
     physical_device::PhysicalDevice,
 };
+use glam::Mat4;
 use thiserror::Error;
 
 use crate::test_shadow::{
@@ -86,7 +87,6 @@ impl TestShadowPass {
         physical_device: &PhysicalDevice,
         device: Arc<Device>,
         render_area: vk::Rect2D,
-        shadow_ubo: ShadowUBO,
     ) -> Result<Self, TestShadowPassInitializationError> {
         let depth_attachment = device.create_depth_attachment(
             render_area.extent,
@@ -264,7 +264,7 @@ impl TestShadowPass {
         let pipeline =
             device.create_graphics_pipeline(pipeline_info, Some(VERT_SHADER_BYTES), None)?;
 
-        let this = Self {
+        Ok(Self {
             device,
 
             depth_attachment,
@@ -282,14 +282,10 @@ impl TestShadowPass {
 
             pipeline_layout,
             pipeline,
-        };
-
-        Self::update_shadow_ubo(&this, shadow_ubo);
-
-        Ok(this)
+        })
     }
 
-    pub fn update_shadow_ubo(&self, shadow_ubo: ShadowUBO) {
+    pub fn update_shadow_ubo(&mut self, shadow_ubo: ShadowUBO) {
         unsafe {
             std::ptr::copy_nonoverlapping(
                 &shadow_ubo,
@@ -299,7 +295,7 @@ impl TestShadowPass {
         }
     }
 
-    pub fn record_commands(&self, command_buffer: vk::CommandBuffer, meshes: &[MeshBuffer]) {
+    pub fn record_commands(&mut self, command_buffer: vk::CommandBuffer, meshes: &[MeshBuffer]) {
         self.device.begin_render_pass(
             command_buffer,
             self.render_pass,

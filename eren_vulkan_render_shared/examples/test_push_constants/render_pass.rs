@@ -93,8 +93,7 @@ impl TestRenderPass {
         command_buffer: vk::CommandBuffer,
         swapchain_image_idx: usize,
         frame_idx: usize,
-        window_width: u32,
-        window_height: u32,
+        extent: vk::Extent2D,
         pre_transform: vk::SurfaceTransformFlagsKHR,
     ) {
         self.device.begin_render_pass(
@@ -105,13 +104,8 @@ impl TestRenderPass {
             &CLEAR_VALUES,
         );
 
-        self.subpass.record_commands(
-            command_buffer,
-            frame_idx,
-            window_width,
-            window_height,
-            pre_transform,
-        );
+        self.subpass
+            .record_commands(command_buffer, frame_idx, extent, pre_transform);
         //self.device.next_subpass(command_buffer); 다음 subpass로 넘어가려면 필요
 
         self.device.end_render_pass(command_buffer);

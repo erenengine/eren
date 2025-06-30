@@ -111,8 +111,7 @@ impl TestRenderer {
             cmd_buffer,
             swapchain_image_idx as usize,
             frame_idx,
-            self.swapchain.window_width,
-            self.swapchain.window_height,
+            self.swapchain.extent,
             self.swapchain.pre_transform,
         );
 

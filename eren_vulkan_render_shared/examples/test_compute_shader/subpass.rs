@@ -369,12 +369,11 @@ impl TestSubpass {
         &mut self,
         command_buffer: vk::CommandBuffer,
         frame_idx: usize,
-        window_width: u32,
-        window_height: u32,
+        extent: vk::Extent2D,
         pre_transform: vk::SurfaceTransformFlagsKHR,
     ) {
         let time = self.start_time.elapsed().as_secs_f32();
-        let aspect_ratio = window_width as f32 / window_height as f32;
+        let aspect_ratio = extent.width as f32 / extent.height as f32;
         let push_constants = ComputePushConstants {
             time,
             aspect_ratio,
