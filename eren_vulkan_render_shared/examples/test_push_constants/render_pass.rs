@@ -49,13 +49,13 @@ impl TestRenderPass {
         let color_refs = [color_attachment_ref];
 
         // subpass 0
-        let subpass_desc = vk::SubpassDescription2::default()
+        let subpass = vk::SubpassDescription2::default()
             .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
             .color_attachments(&color_refs);
 
         let render_pass = device.create_render_pass(
             &[color_attachment],
-            &[subpass_desc],
+            &[subpass],
             &[
                 // external -> subpass 0
                 vk::SubpassDependency2::default()

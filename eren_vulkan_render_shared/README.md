@@ -32,6 +32,12 @@ glslc examples/test_depth_buffer/shaders/shader.frag -o examples/test_depth_buff
 glslc examples/test_compute_shader/shaders/shader.comp -o examples/test_compute_shader/shaders/shader.comp.spv
 glslc examples/test_compute_shader/shaders/shader.vert -o examples/test_compute_shader/shaders/shader.vert.spv
 glslc examples/test_compute_shader/shaders/shader.frag -o examples/test_compute_shader/shaders/shader.frag.spv
+
+glslc examples/test_shadow/shaders/shadow.vert -o examples/test_shadow/shaders/shadow.vert.spv
+glslc examples/test_shadow/shaders/main.vert -o examples/test_shadow/shaders/main.vert.spv
+glslc examples/test_shadow/shaders/main.frag -o examples/test_shadow/shaders/main.frag.spv
+glslc examples/test_shadow/shaders/debug_quad.vert -o examples/test_shadow/shaders/debug_quad.vert.spv
+glslc examples/test_shadow/shaders/debug_quad.frag -o examples/test_shadow/shaders/debug_quad.frag.spv
 ```
 
 ## 테스트
@@ -47,4 +53,5 @@ RUST_LOG=debug cargo run --example test_push_constants
 RUST_LOG=debug cargo run --example test_storage_buffer
 RUST_LOG=debug cargo run --example test_depth_buffer
 RUST_LOG=debug cargo run --example test_compute_shader
+RUST_LOG=debug cargo run --example test_shadow
 ```

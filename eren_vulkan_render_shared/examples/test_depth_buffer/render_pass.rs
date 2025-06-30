@@ -66,21 +66,22 @@ impl TestRenderPass {
         let depth_attachment = device.create_depth_attachment(
             render_area.extent,
             physical_device.depth_format,
+            physical_device.uses_stencil,
             vk::SampleCountFlags::TYPE_1,
             false,
         )?;
 
-        let depth_attachment_ref = device.get_depth_attachment_ref(1);
+        let depth_attachment_ref = device.get_depth_attachment_ref(1, physical_device.uses_stencil);
 
         // subpass 0
-        let subpass_desc = vk::SubpassDescription2::default()
+        let subpass = vk::SubpassDescription2::default()
             .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
             .color_attachments(&color_refs)
             .depth_stencil_attachment(&depth_attachment_ref);
 
         let render_pass = device.create_render_pass(
             &[color_attachment, depth_attachment.desc],
-            &[subpass_desc],
+            &[subpass],
             &[
                 // external -> subpass 0
                 vk::SubpassDependency2::default()
@@ -103,7 +104,15 @@ impl TestRenderPass {
 
         let swapchain_framebuffers = swapchain
             .create_framebuffers_with_depth_image_view(render_pass, depth_attachment.view)?;
-        let subpass = TestSubpass::new(device.clone(), command_pool, render_area, render_pass, 0)?;
+
+        let subpass = TestSubpass::new(
+            physical_device,
+            device.clone(),
+            command_pool,
+            render_area,
+            render_pass,
+            0,
+        )?;
 
         Ok(Self {
             device,
@@ -154,9 +163,6 @@ impl Drop for TestRenderPass {
         }
 
         self.device.destroy_render_pass(self.render_pass);
-
-        self.device.destroy_image_view(self.depth_attachment.view);
-        self.device
-            .destroy_image_with_memory(self.depth_attachment.image, self.depth_attachment.memory);
+        self.device.destroy_attachment(&self.depth_attachment);
     }
 }

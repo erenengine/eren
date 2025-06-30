@@ -326,12 +326,16 @@ pub struct PhysicalDevice {
     surface: Arc<Surface>,
 
     handle: vk::PhysicalDevice,
+
     pub queue_family_indices: QueueFamilyIndices,
 
     pub min_swapchain_image_count: u32,
+
     pub preferred_surface_format: vk::SurfaceFormatKHR,
     pub preferred_present_mode: vk::PresentModeKHR,
+
     pub depth_format: vk::Format,
+    pub uses_stencil: bool,
 
     memory_properties: vk::PhysicalDeviceMemoryProperties,
 }
@@ -361,9 +365,10 @@ impl PhysicalDevice {
                 min_swapchain_image_count = candidate.surface_info.capabilities.max_image_count;
             }
 
-            let preferred_format = candidate.surface_info.select_preferred_surface_format();
+            let preferred_surface_format = candidate.surface_info.select_preferred_surface_format();
             let preferred_present_mode = candidate.surface_info.select_preferred_present_mode();
             let depth_format = find_depth_format(&instance, candidate.physical_device)?;
+            let uses_stencil = has_stencil_component(depth_format);
 
             Ok(Self {
                 instance,
@@ -373,9 +378,12 @@ impl PhysicalDevice {
                 queue_family_indices: candidate.queue_family_indices,
 
                 min_swapchain_image_count,
-                preferred_surface_format: preferred_format,
+
+                preferred_surface_format,
                 preferred_present_mode,
+
                 depth_format,
+                uses_stencil,
 
                 memory_properties,
             })

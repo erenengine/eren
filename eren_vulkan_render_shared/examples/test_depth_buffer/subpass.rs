@@ -12,6 +12,7 @@ use eren_vulkan_render_shared::{
         PipelineLayoutCreationError,
     },
     frame::MAX_FRAMES_IN_FLIGHT,
+    physical_device::PhysicalDevice,
 };
 use thiserror::Error;
 
@@ -186,6 +187,7 @@ pub enum TestSubpassInitializationError {
 
 impl TestSubpass {
     pub fn new(
+        physical_device: &PhysicalDevice,
         device: Arc<Device>,
         command_pool: &CommandPool,
         render_area: vk::Rect2D,
@@ -272,14 +274,31 @@ impl TestSubpass {
             .attachments(&color_blend_attachment_states)
             .blend_constants([0.0, 0.0, 0.0, 0.0]); // Optional
 
+        let (front, back) = if physical_device.uses_stencil {
+            let default_stencil_op_state = vk::StencilOpState::default()
+                .fail_op(vk::StencilOp::KEEP)
+                .pass_op(vk::StencilOp::KEEP)
+                .depth_fail_op(vk::StencilOp::KEEP)
+                .compare_op(vk::CompareOp::ALWAYS)
+                .compare_mask(0xFF)
+                .write_mask(0xFF)
+                .reference(0);
+            (default_stencil_op_state, default_stencil_op_state)
+        } else {
+            // 비활성화할 경우에도 기본값을 넣어줌 (Vulkan 요구 사항)
+            (vk::StencilOpState::default(), vk::StencilOpState::default())
+        };
+
         let depth_stencil_state = vk::PipelineDepthStencilStateCreateInfo::default()
             .depth_test_enable(true)
             .depth_write_enable(true)
             .depth_compare_op(vk::CompareOp::LESS)
             .depth_bounds_test_enable(false)
-            .min_depth_bounds(0.0) // Optional
-            .max_depth_bounds(1.0) // Optional
-            .stencil_test_enable(false);
+            .min_depth_bounds(0.0)
+            .max_depth_bounds(1.0)
+            .stencil_test_enable(physical_device.uses_stencil)
+            .front(front)
+            .back(back);
 
         let pipeline_info = vk::GraphicsPipelineCreateInfo::default()
             .vertex_input_state(&vertex_input_info)

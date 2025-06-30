@@ -399,7 +399,7 @@ impl Device {
         Ok(memory)
     }
 
-    fn create_image_with_memory(
+    pub fn create_image_with_memory(
         &self,
         format: vk::Format,
         extent: vk::Extent2D,
@@ -584,6 +584,7 @@ impl Device {
         &self,
         extent: vk::Extent2D,
         format: vk::Format,
+        uses_stencil: bool,
         samples: vk::SampleCountFlags,
         sampled: bool,
     ) -> Result<Attachment, AttachmentCreationError> {
@@ -603,23 +604,35 @@ impl Device {
             vk::MemoryPropertyFlags::DEVICE_LOCAL,
         )?;
 
-        let view = self.create_image_view(
-            image,
-            format,
-            vk::ImageAspectFlags::DEPTH, // 스텐실을 사용하지 않음
-        )?;
+        let aspect_flags = if uses_stencil {
+            vk::ImageAspectFlags::DEPTH | vk::ImageAspectFlags::STENCIL
+        } else {
+            vk::ImageAspectFlags::DEPTH
+        };
+
+        let view = self.create_image_view(image, format, aspect_flags)?;
 
         let desc = vk::AttachmentDescription2::default()
             .format(format)
             .samples(samples)
             .load_op(vk::AttachmentLoadOp::CLEAR)
             .store_op(vk::AttachmentStoreOp::STORE)
-            .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
-            .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
+            .stencil_load_op(if uses_stencil {
+                vk::AttachmentLoadOp::CLEAR
+            } else {
+                vk::AttachmentLoadOp::DONT_CARE
+            })
+            .stencil_store_op(if uses_stencil {
+                vk::AttachmentStoreOp::STORE
+            } else {
+                vk::AttachmentStoreOp::DONT_CARE
+            })
             .initial_layout(vk::ImageLayout::UNDEFINED)
             .final_layout(if sampled {
-                vk::ImageLayout::DEPTH_STENCIL_READ_ONLY_OPTIMAL
+                // 셰이더에서 샘플링(sampler2D)할 때는 이 레이아웃을 사용해야 합니다.
+                vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL
             } else {
+                // 샘플링하지 않고 뎁스 버퍼로만 사용할 때의 최종 레이아웃
                 vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL
             });
 
@@ -695,11 +708,19 @@ impl Device {
             .final_layout(vk::ImageLayout::PRESENT_SRC_KHR) // 최종 레이아웃은 Present
     }
 
-    pub fn get_depth_attachment_ref(&self, attachment_index: u32) -> vk::AttachmentReference2 {
+    pub fn get_depth_attachment_ref(
+        &self,
+        attachment_index: u32,
+        uses_stencil: bool,
+    ) -> vk::AttachmentReference2 {
         vk::AttachmentReference2::default()
             .attachment(attachment_index)
             .layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
-            .aspect_mask(vk::ImageAspectFlags::DEPTH) // 스텐실을 사용하지 않음
+            .aspect_mask(if uses_stencil {
+                vk::ImageAspectFlags::DEPTH | vk::ImageAspectFlags::STENCIL
+            } else {
+                vk::ImageAspectFlags::DEPTH
+            })
     }
 
     pub fn get_color_attachment_ref(&self, attachment_index: u32) -> vk::AttachmentReference2 {
@@ -707,6 +728,11 @@ impl Device {
             .attachment(attachment_index)
             .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
             .aspect_mask(vk::ImageAspectFlags::COLOR)
+    }
+
+    pub fn destroy_attachment(&self, attachment: &Attachment) {
+        self.destroy_image_view(attachment.view);
+        self.destroy_image_with_memory(attachment.image, attachment.memory);
     }
 }
 
@@ -1005,6 +1031,29 @@ impl Device {
             );
         }
     }
+
+    pub fn pipeline_barrier(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        src_stage_mask: vk::PipelineStageFlags,
+        dst_stage_mask: vk::PipelineStageFlags,
+        dependency_flags: vk::DependencyFlags,
+        memory_barriers: &[vk::MemoryBarrier<'_>],
+        buffer_memory_barriers: &[vk::BufferMemoryBarrier<'_>],
+        image_memory_barriers: &[vk::ImageMemoryBarrier<'_>],
+    ) {
+        unsafe {
+            self.handle.cmd_pipeline_barrier(
+                command_buffer,
+                src_stage_mask,
+                dst_stage_mask,
+                dependency_flags,
+                memory_barriers,
+                buffer_memory_barriers,
+                image_memory_barriers,
+            );
+        }
+    }
 }
 
 /// --- 디스크립터 셋 관련 기능들 ---
@@ -1020,6 +1069,10 @@ pub struct DescriptorPoolCreationError(String);
 #[derive(Debug, Error)]
 #[error("Failed to allocate descriptor sets: {0}")]
 pub struct DescriptorSetAllocationError(String);
+
+#[derive(Debug, Error)]
+#[error("Failed to create sampler: {0}")]
+pub struct SamplerCreationError(String);
 
 impl Device {
     pub fn create_descriptor_set_layout(
@@ -1078,6 +1131,23 @@ impl Device {
                 .allocate_descriptor_sets(&alloc_info)
                 .map_err(|e| DescriptorSetAllocationError(e.to_string()))?
         })
+    }
+
+    pub fn create_sampler(
+        &self,
+        create_info: &vk::SamplerCreateInfo,
+    ) -> Result<vk::Sampler, SamplerCreationError> {
+        Ok(unsafe {
+            self.handle
+                .create_sampler(create_info, None)
+                .map_err(|e| SamplerCreationError(e.to_string()))?
+        })
+    }
+
+    pub fn destroy_sampler(&self, sampler: vk::Sampler) {
+        unsafe {
+            self.handle.destroy_sampler(sampler, None);
+        }
     }
 
     pub fn write_descriptor_sets(&self, descriptor_writes: &[vk::WriteDescriptorSet]) {
