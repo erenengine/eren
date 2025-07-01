@@ -278,11 +278,9 @@ impl TestRenderPass {
             .num_milliseconds() as f32
             / 1000.0;
 
-        let aspect_ratio = window_width as f32 / window_height as f32;
-
         let ubo = UniformBufferObject {
             time,
-            aspect_ratio,
+            aspect_ratio: window_width as f32 / window_height as f32,
             _padding: [0.0; 2],
         };
 
