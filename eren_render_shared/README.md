@@ -7,6 +7,7 @@ RUST_LOG=debug cargo run --example test_index_buffer
 RUST_LOG=debug cargo run --example test_uniform_buffer
 RUST_LOG=debug cargo run --example test_push_constants
 RUST_LOG=debug cargo run --example test_storage_buffer
+RUST_LOG=debug cargo run --example test_compute_shader
 ```
 
 ```
@@ -33,4 +34,7 @@ wasm-bindgen --out-dir ./examples/wasm --target web ./target/wasm32-unknown-unkn
 
 cargo build --example test_storage_buffer --target wasm32-unknown-unknown
 wasm-bindgen --out-dir ./examples/wasm --target web ./target/wasm32-unknown-unknown/debug/examples/test_storage_buffer.wasm
+
+cargo build --example test_compute_shader --target wasm32-unknown-unknown
+wasm-bindgen --out-dir ./examples/wasm --target web ./target/wasm32-unknown-unknown/debug/examples/test_compute_shader.wasm
 ```

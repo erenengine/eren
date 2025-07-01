@@ -56,6 +56,13 @@ impl Device {
         self.handle.create_pipeline_layout(desc)
     }
 
+    pub fn create_compute_pipeline(
+        &self,
+        desc: &wgpu::ComputePipelineDescriptor,
+    ) -> wgpu::ComputePipeline {
+        self.handle.create_compute_pipeline(desc)
+    }
+
     pub fn create_render_pipeline(
         &self,
         desc: &wgpu::RenderPipelineDescriptor,

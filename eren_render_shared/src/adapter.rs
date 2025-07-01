@@ -46,6 +46,10 @@ impl Adapter {
         // WebGPU/WebGL에서 push constants를 지원하지 않음
         //let required_features = wgpu::Features::PUSH_CONSTANTS;
 
+        // WebGPU에서는 read_write storage buffer를 버텍스 셰이더에서 사용할 수 없음
+        // WebGL에서는 storage buffer를 사용할 수 없음
+        //let required_features = wgpu::Features::VERTEX_WRITABLE_STORAGE;
+
         let mut desc = wgpu::DeviceDescriptor::default();
         //desc.required_features = required_features;
         desc.required_limits = self.handle.limits();
