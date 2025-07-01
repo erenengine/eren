@@ -11,7 +11,6 @@ use eren_vulkan_render_shared::{
     },
     physical_device::PhysicalDevice,
 };
-use glam::Mat4;
 use thiserror::Error;
 
 use crate::test_shadow::{

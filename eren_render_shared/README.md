@@ -1,3 +1,8 @@
+## 제약 사항
+- WebGPU/WebGL에서 push constants를 지원하지 않음
+- WebGPU에서는 read_write storage buffer를 버텍스 셰이더에서 사용할 수 없음
+- WebGL에서는 storage buffer를 사용할 수 없음
+
 ```
 RUST_LOG=debug cargo run --example test_instance
 RUST_LOG=debug cargo run --example test_device

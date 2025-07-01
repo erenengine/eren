@@ -7,7 +7,7 @@ use eren_window::window::{WindowConfig, WindowEventHandler, WindowLifecycle};
 use winit::window::Window;
 
 struct TestWindowEventHandler {
-    window: Arc<Window>,
+    _window: Arc<Window>,
     _instance: Arc<Instance>,
     _surface: Arc<Surface>,
     _physical_device: PhysicalDevice,
@@ -24,7 +24,7 @@ impl WindowEventHandler for TestWindowEventHandler {
         log::debug!("Physical device created");
 
         Self {
-            window,
+            _window: window,
             _instance: instance,
             _surface: surface,
             _physical_device: physical_device,
