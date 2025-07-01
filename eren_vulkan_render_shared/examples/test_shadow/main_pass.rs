@@ -21,20 +21,16 @@ use crate::test_shadow::{
     ubo::{LightUBO, MainUBO},
 };
 
-// 셰이더 파일 경로
 const VERT_SHADER_BYTES: &[u8] = include_bytes!("./shaders/main.vert.spv");
 const FRAG_SHADER_BYTES: &[u8] = include_bytes!("./shaders/main.frag.spv");
 
-// 화면을 클리어할 때 사용할 값 (컬러 + 뎁스)
 const CLEAR_VALUES: [vk::ClearValue; 2] = [
     vk::ClearValue {
-        // 컬러 어태치먼트 (0번)
         color: vk::ClearColorValue {
             float32: [0.1921, 0.302, 0.4745, 1.0],
         },
     },
     vk::ClearValue {
-        // 뎁스 어태치먼트 (1번)
         depth_stencil: vk::ClearDepthStencilValue {
             depth: 1.0,
             stencil: 0,
@@ -46,16 +42,13 @@ pub struct TestMainPass {
     device: Arc<Device>,
     render_area: vk::Rect2D,
 
-    // 이 패스 전용 뎁스 버퍼
     depth_attachment: Attachment,
 
-    // 렌더링 파이프라인 관련
     render_pass: vk::RenderPass,
     pipeline_layout: vk::PipelineLayout,
     pipeline: vk::Pipeline,
     swapchain_framebuffers: Vec<vk::Framebuffer>,
 
-    // 디스크립터 관련 (매우 중요)
     descriptor_pool: vk::DescriptorPool,
 
     // Set 0: UBOs (MainUBO, LightUBO)
@@ -70,7 +63,6 @@ pub struct TestMainPass {
     main_uniform_buffers: Vec<(vk::Buffer, vk::DeviceMemory, *mut c_void)>,
     light_uniform_buffers: Vec<(vk::Buffer, vk::DeviceMemory, *mut c_void)>,
 
-    // 그림자 맵 샘플러
     shadow_map_sampler: vk::Sampler,
 }
 
@@ -78,24 +70,34 @@ pub struct TestMainPass {
 pub enum TestMainPassInitializationError {
     #[error("Failed to create attachment: {0}")]
     CreateAttachment(#[from] AttachmentCreationError),
+
     #[error("Failed to create descriptor set layout: {0}")]
     CreateDescriptorSetLayout(#[from] DescriptorSetLayoutCreationError),
+
     #[error("Failed to create pipeline layout: {0}")]
     CreatePipelineLayout(#[from] PipelineLayoutCreationError),
+
     #[error("Failed to create render pass: {0}")]
     CreateRenderPass(#[from] RenderPassCreationError),
+
     #[error("Failed to create graphics pipeline: {0}")]
     CreateGraphicsPipeline(#[from] GraphicsPipelineCreationError),
+
     #[error("Failed to create framebuffers: {0}")]
     CreateFramebuffers(#[from] FramebufferCreationError),
+
     #[error("Failed to create uniform buffer: {0}")]
     CreateUniformBuffer(#[from] BufferWithMemoryCreationError),
+
     #[error("Failed to map memory: {0}")]
     MapMemory(#[from] MapMemoryError),
+
     #[error("Failed to create descriptor pool: {0}")]
     CreateDescriptorPool(#[from] DescriptorPoolCreationError),
+
     #[error("Failed to allocate descriptor sets: {0}")]
     AllocateDescriptorSets(#[from] DescriptorSetAllocationError),
+
     #[error("Failed to create sampler: {0}")]
     CreateSampler(#[from] SamplerCreationError),
 }
@@ -108,7 +110,6 @@ impl TestMainPass {
         swapchain: &Swapchain,
         shadow_map_view: vk::ImageView, // ShadowPass에서 생성된 뎁스맵 뷰
     ) -> Result<Self, TestMainPassInitializationError> {
-        // === 1. 디스크립터 셋 레이아웃 생성 ===
         // 셰이더는 두 개의 디스크립터 셋을 사용합니다 (set=0, set=1)
 
         // Set 0: MainUBO와 LightUBO를 위한 레이아웃
@@ -137,9 +138,7 @@ impl TestMainPass {
         let descriptor_set_layout_1 =
             device.create_descriptor_set_layout(&[shadow_sampler_binding])?;
 
-        // === 2. 렌더 패스 생성 ===
         // 컬러 어태치먼트(스왑체인)와 뎁스 어태치먼트(자체 생성)를 사용합니다.
-
         let color_attachment = device.get_swapchain_color_attachment_desc();
 
         let depth_attachment = device.create_depth_attachment(
@@ -161,7 +160,6 @@ impl TestMainPass {
         let attachments = [color_attachment, depth_attachment.desc];
         let render_pass = device.create_render_pass(&attachments, &[subpass], &[])?;
 
-        // === 3. 파이프라인 레이아웃 및 파이프라인 생성 ===
         let pipeline_layout = device
             .create_pipeline_layout(&[descriptor_set_layout_0, descriptor_set_layout_1], &[])?;
 
@@ -172,11 +170,9 @@ impl TestMainPass {
             swapchain.extent,
         )?;
 
-        // === 4. 프레임버퍼 생성 ===
         let swapchain_framebuffers = swapchain
             .create_framebuffers_with_depth_image_view(render_pass, depth_attachment.view)?;
 
-        // === 5. UBO 및 디스크립터 셋 생성 ===
         let main_uniform_buffers = Self::create_uniform_buffers(
             device.clone(),
             MAX_FRAMES_IN_FLIGHT,
@@ -189,7 +185,7 @@ impl TestMainPass {
         )?;
 
         // 그림자 맵 샘플러 생성. Compare Op를 사용하는 것이 PCF(Percentage-Closer Filtering)에 더 좋지만,
-        // 현재 셰이더는 일반 샘플링을 하므로 일단 이렇게 둡니다.
+        // 맥에서 MoltenVK는 Compare Op를 지원하지 않으므로 일단 이렇게 둡니다.
         let sampler_info = vk::SamplerCreateInfo::default()
             .mag_filter(vk::Filter::LINEAR)
             .min_filter(vk::Filter::LINEAR)
@@ -264,18 +260,23 @@ impl TestMainPass {
         Ok(Self {
             device,
             render_area,
+
             depth_attachment,
+
             render_pass,
             pipeline_layout,
             pipeline,
             swapchain_framebuffers,
+
             descriptor_pool,
             descriptor_set_layout_0,
             descriptor_sets_0,
             descriptor_set_layout_1,
             descriptor_sets_1,
+
             main_uniform_buffers,
             light_uniform_buffers,
+
             shadow_map_sampler,
         })
     }
@@ -344,8 +345,6 @@ impl TestMainPass {
 
         self.device.end_render_pass(command_buffer);
     }
-
-    // --- Private Helper Functions ---
 
     fn create_pipeline(
         device: Arc<Device>,

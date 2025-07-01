@@ -26,11 +26,21 @@ float calculateShadow(vec4 shadowCoord) {
         return 0.0;
     }
 
-    float closestDepth = texture(shadowMap, shadowTexCoord).r;
-
     // self-shadowing 방지를 위한 bias
     float bias = max(0.005 * (1.0 - dot(normalize(normalWorld), normalize(-light.direction))), 0.0005);
-    float shadow = (currentDepth - bias > closestDepth) ? 1.0 : 0.0;
+    
+    float shadow = 0.0;
+    float texelSize = 1.0 / 2048.0; // 그림자 맵 해상도에 맞게 설정
+
+    for (int x = -1; x <= 1; ++x) {
+        for (int y = -1; y <= 1; ++y) {
+            vec2 offset = vec2(x, y) * texelSize;
+            float closestDepth = texture(shadowMap, uv + offset).r;
+            shadow += (currentDepth - bias > closestDepth) ? 1.0 : 0.0;
+        }
+    }
+
+    shadow /= 9.0; // 3x3 평균
 
     return shadow;
 }
