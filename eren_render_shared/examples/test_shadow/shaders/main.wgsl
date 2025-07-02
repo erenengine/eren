@@ -92,28 +92,31 @@ fn fs_main(input: FragmentInput) -> @location(0) vec4<f32> {
     );
     let currentDepth = projCoords.z;
 
+    let texelSize = 1.0 / 2048.0;
+
     var shadow = 0.0;
 
-    if (currentDepth <= 1.0 &&
-        shadowTexCoord.x >= 0.0 && shadowTexCoord.x <= 1.0 &&
-        shadowTexCoord.y >= 0.0 && shadowTexCoord.y <= 1.0) {
+    for (var x: i32 = -1; x <= 1; x = x + 1) {
+        for (var y: i32 = -1; y <= 1; y = y + 1) {
+            let offset = vec2<f32>(f32(x), f32(y)) * texelSize;
+            let coord = shadowTexCoord + offset;
 
-        let texelSize = 1.0 / 2048.0;
+            // 텍스처 범위 내 여부 확인
+            let in_bounds = all(coord >= vec2(0.0)) && all(coord <= vec2(1.0)) && currentDepth <= 1.0;
 
-        for (var x: i32 = -1; x <= 1; x = x + 1) {
-            for (var y: i32 = -1; y <= 1; y = y + 1) {
-                let offset = vec2<f32>(f32(x), f32(y)) * texelSize;
-                shadow = shadow + f32(textureSampleCompare(
-                    shadowMap,
-                    shadowSampler,
-                    shadowTexCoord + offset,
-                    currentDepth
-                ) < 1.0);
-            }
+            // 항상 호출하되, 결과를 마스킹
+            let comparison = textureSampleCompare(
+                shadowMap,
+                shadowSampler,
+                coord,
+                currentDepth
+            );
+
+            shadow = shadow + f32(comparison < 1.0) * f32(in_bounds);
         }
-
-        shadow = shadow / 9.0;
     }
+
+    shadow = shadow / 9.0;
 
     var baseColor: vec3<f32>;
     if (input.fragPosWorld.y == -1.0) {

@@ -17,6 +17,9 @@ const CLEAR_DEPTH: f32 = 1.0;
 pub struct MainPass {
     pipeline: wgpu::RenderPipeline,
 
+    bind_group_layout_shadow: wgpu::BindGroupLayout,
+    shadow_sampler: wgpu::Sampler,
+
     main_ubo_buffer: wgpu::Buffer,
     light_ubo_buffer: wgpu::Buffer,
 
@@ -94,12 +97,12 @@ impl MainPass {
 
         // --- Shadow Sampler ---
         let shadow_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
+            mag_filter: wgpu::FilterMode::Nearest,
+            min_filter: wgpu::FilterMode::Nearest,
             mipmap_filter: wgpu::FilterMode::Nearest,
             address_mode_u: wgpu::AddressMode::ClampToEdge,
             address_mode_v: wgpu::AddressMode::ClampToEdge,
-            border_color: Some(wgpu::SamplerBorderColor::OpaqueWhite),
+            //border_color: Some(wgpu::SamplerBorderColor::OpaqueWhite), // WebGL에서는 지원하지 않음
             compare: Some(wgpu::CompareFunction::Less),
             ..Default::default()
         });
@@ -194,8 +197,35 @@ impl MainPass {
             cache: None,
         });
 
-        let scene_depth_tex = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("Scene Depth"),
+        Self {
+            pipeline,
+
+            bind_group_layout_shadow,
+            shadow_sampler,
+
+            bind_group_main,
+            bind_group_shadow,
+
+            main_ubo_buffer,
+            light_ubo_buffer,
+
+            scene_depth_view: Self::create_depth_texture_view(
+                device,
+                depth_format,
+                window_width,
+                window_height,
+            ),
+        }
+    }
+
+    fn create_depth_texture_view(
+        device: &Device,
+        depth_format: wgpu::TextureFormat,
+        window_width: u32,
+        window_height: u32,
+    ) -> wgpu::TextureView {
+        let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("Shadow Depth Texture"),
             size: wgpu::Extent3d {
                 width: window_width,
                 height: window_height,
@@ -209,19 +239,34 @@ impl MainPass {
             view_formats: &[],
         });
 
-        let scene_depth_view = scene_depth_tex.create_view(&Default::default());
+        depth_texture.create_view(&wgpu::TextureViewDescriptor::default())
+    }
 
-        Self {
-            pipeline,
+    pub fn resize_depth_texture(
+        &mut self,
+        device: &Device,
+        shadow_texture_view: &wgpu::TextureView,
+        depth_format: wgpu::TextureFormat,
+        window_width: u32,
+        window_height: u32,
+    ) {
+        self.bind_group_shadow = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Shadow Bind Group"),
+            layout: &self.bind_group_layout_shadow,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(shadow_texture_view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&self.shadow_sampler),
+                },
+            ],
+        });
 
-            bind_group_main,
-            bind_group_shadow,
-
-            main_ubo_buffer,
-            light_ubo_buffer,
-
-            scene_depth_view,
-        }
+        self.scene_depth_view =
+            Self::create_depth_texture_view(device, depth_format, window_width, window_height);
     }
 
     pub fn update_main_ubo(&self, queue: &wgpu::Queue, ubo: &MainUBO) {

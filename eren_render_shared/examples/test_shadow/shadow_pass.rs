@@ -26,25 +26,6 @@ impl ShadowPass {
             source: wgpu::ShaderSource::Wgsl(SHADER_STR.into()),
         });
 
-        // 깊이 텍스처 생성
-        let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("Shadow Depth Texture"),
-            size: wgpu::Extent3d {
-                width: window_width,
-                height: window_height,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: depth_format,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
-            view_formats: &[],
-        });
-
-        let shadow_texture_view =
-            depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
-
         let uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Shadow UBO"),
             size: std::mem::size_of::<ShadowUBO>() as wgpu::BufferAddress,
@@ -115,12 +96,53 @@ impl ShadowPass {
         });
 
         Self {
-            shadow_texture_view,
+            shadow_texture_view: Self::create_shadow_texture_view(
+                device,
+                depth_format,
+                window_width,
+                window_height,
+            ),
 
             uniform_buffer,
             bind_group,
             pipeline,
         }
+    }
+
+    fn create_shadow_texture_view(
+        device: &Device,
+        depth_format: wgpu::TextureFormat,
+        window_width: u32,
+        window_height: u32,
+    ) -> wgpu::TextureView {
+        // 깊이 텍스처 생성
+        let shadow_texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("Shadow Depth Texture"),
+            size: wgpu::Extent3d {
+                width: window_width,
+                height: window_height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: depth_format,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+
+        shadow_texture.create_view(&wgpu::TextureViewDescriptor::default())
+    }
+
+    pub fn resize_shadow_texture(
+        &mut self,
+        device: &Device,
+        depth_format: wgpu::TextureFormat,
+        window_width: u32,
+        window_height: u32,
+    ) {
+        self.shadow_texture_view =
+            Self::create_shadow_texture_view(device, depth_format, window_width, window_height);
     }
 
     pub fn update_shadow_ubo(&mut self, queue: &wgpu::Queue, shadow_ubo: ShadowUBO) {

@@ -3,7 +3,7 @@ use eren_render_shared::{adapter::Adapter, device::Device, surface::Surface};
 use glam::{Mat4, Vec3, vec3};
 
 use crate::test_shadow::{
-    debug_quad_pass::DebugQuadPass,
+    //debug_quad_pass::DebugQuadPass,
     main_pass::MainPass,
     mesh::MeshBuffer,
     ubo::{LightUBO, MainUBO, ShadowUBO},
@@ -15,7 +15,7 @@ const DEBUG_QUAD_PASS_ENABLED: bool = false;
 
 pub struct TestRenderer {
     shadow_pass: ShadowPass,
-    debug_quad_pass: DebugQuadPass,
+    //debug_quad_pass: DebugQuadPass,
     main_pass: MainPass,
 
     start_time: chrono::DateTime<chrono::Utc>,
@@ -25,7 +25,7 @@ impl TestRenderer {
     pub fn new(adapter: &Adapter, device: &Device, window_width: u32, window_height: u32) -> Self {
         let shadow_pass =
             ShadowPass::new(device, adapter.depth_format, window_width, window_height);
-        let debug_quad_pass = DebugQuadPass::new(device, &shadow_pass.shadow_texture_view);
+        //let debug_quad_pass = DebugQuadPass::new(device, &shadow_pass.shadow_texture_view);
         let main_pass = MainPass::new(
             device,
             adapter.preferred_surface_format,
@@ -36,11 +36,33 @@ impl TestRenderer {
         );
         Self {
             shadow_pass,
-            debug_quad_pass,
+            //debug_quad_pass,
             main_pass,
 
             start_time: Utc::now(),
         }
+    }
+
+    pub fn resize(
+        &mut self,
+        device: &Device,
+        depth_format: wgpu::TextureFormat,
+        window_width: u32,
+        window_height: u32,
+    ) {
+        self.shadow_pass
+            .resize_shadow_texture(device, depth_format, window_width, window_height);
+
+        /*self.debug_quad_pass
+            .rebind_shadow_texture(device, &self.shadow_pass.shadow_texture_view);*/
+
+        self.main_pass.resize_depth_texture(
+            device,
+            &self.shadow_pass.shadow_texture_view,
+            depth_format,
+            window_width,
+            window_height,
+        );
     }
 
     pub fn render(
@@ -87,8 +109,8 @@ impl TestRenderer {
         self.shadow_pass.record_commands(&mut encoder, mesh_buffers);
 
         if DEBUG_QUAD_PASS_ENABLED {
-            self.debug_quad_pass
-                .record_commands(&mut encoder, &surface_view);
+            /*self.debug_quad_pass
+                .record_commands(&mut encoder, &surface_view);*/
         } else {
             let cam_x = radius * (-speed * time).cos();
             let cam_z = radius * (-speed * time).sin();

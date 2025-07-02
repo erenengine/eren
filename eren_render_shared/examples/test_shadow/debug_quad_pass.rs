@@ -1,3 +1,4 @@
+/*
 use eren_render_shared::device::Device;
 
 const SHADER_STR: &str = include_str!("./shaders/debug_quad.wgsl");
@@ -10,6 +11,8 @@ const CLEAR_COLOR: wgpu::Color = wgpu::Color {
 };
 
 pub struct DebugQuadPass {
+    bind_group_layout: wgpu::BindGroupLayout,
+    sampler: wgpu::Sampler,
     bind_group: wgpu::BindGroup,
     pipeline: wgpu::RenderPipeline,
 }
@@ -50,8 +53,8 @@ impl DebugQuadPass {
             address_mode_u: wgpu::AddressMode::ClampToEdge,
             address_mode_v: wgpu::AddressMode::ClampToEdge,
             address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
+            mag_filter: wgpu::FilterMode::Nearest,
+            min_filter: wgpu::FilterMode::Nearest,
             mipmap_filter: wgpu::FilterMode::Nearest,
             compare: None,
             ..Default::default()
@@ -105,9 +108,32 @@ impl DebugQuadPass {
         });
 
         Self {
+            bind_group_layout,
+            sampler,
             bind_group,
             pipeline,
         }
+    }
+
+    pub fn rebind_shadow_texture(
+        &mut self,
+        device: &Device,
+        shadow_texture_view: &wgpu::TextureView,
+    ) {
+        self.bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Debug Bind Group"),
+            layout: &self.bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(shadow_texture_view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&self.sampler),
+                },
+            ],
+        });
     }
 
     pub fn record_commands(&self, encoder: &mut wgpu::CommandEncoder, view: &wgpu::TextureView) {
@@ -131,3 +157,4 @@ impl DebugQuadPass {
         rpass.draw(0..3, 0..1); // full-screen triangle
     }
 }
+*/
