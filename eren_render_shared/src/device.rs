@@ -91,4 +91,12 @@ impl Device {
     pub fn create_bind_group(&self, desc: &wgpu::BindGroupDescriptor) -> wgpu::BindGroup {
         self.handle.create_bind_group(desc)
     }
+
+    pub fn create_texture(&self, desc: &wgpu::TextureDescriptor) -> wgpu::Texture {
+        self.handle.create_texture(desc)
+    }
+
+    pub fn create_sampler(&self, desc: &wgpu::SamplerDescriptor) -> wgpu::Sampler {
+        self.handle.create_sampler(desc)
+    }
 }

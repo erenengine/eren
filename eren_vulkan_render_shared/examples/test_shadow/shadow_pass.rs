@@ -13,10 +13,7 @@ use eren_vulkan_render_shared::{
 };
 use thiserror::Error;
 
-use crate::test_shadow::{
-    mesh::{MeshBuffer, Vertex},
-    ubo::ShadowUBO,
-};
+use crate::test_shadow::{mesh::MeshBuffer, ubo::ShadowUBO, vertex::Vertex};
 
 const VERT_SHADER_BYTES: &[u8] = include_bytes!("./shaders/shadow.vert.spv");
 

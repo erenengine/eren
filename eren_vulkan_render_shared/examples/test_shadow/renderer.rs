@@ -16,6 +16,7 @@ use glam::{Mat4, Vec3, vec3};
 use thiserror::Error;
 
 use crate::test_shadow::{
+    debug_quad_pass::DebugQuadPass,
     main_pass::{TestMainPass, TestMainPassInitializationError},
     mesh::MeshBuffer,
     shadow_pass::{TestShadowPass, TestShadowPassInitializationError},
@@ -24,12 +25,14 @@ use crate::test_shadow::{
 
 use super::debug_quad_pass::DebugQuadPassInitializationError;
 
+const DEBUG_QUAD_PASS_ENABLED: bool = true;
+
 pub struct TestRenderer {
     device: Arc<Device>,
     swapchain: Arc<Swapchain>,
     frame_mgr: FrameManager,
     shadow_pass: TestShadowPass,
-    //debug_quad_pass: DebugQuadPass,
+    debug_quad_pass: DebugQuadPass,
     main_pass: TestMainPass,
 
     start_time: std::time::Instant,
@@ -129,12 +132,12 @@ impl TestRenderer {
 
         let shadow_pass = TestShadowPass::new(physical_device, device.clone(), render_area)?;
 
-        /*let debug_quad_pass = DebugQuadPass::new(
+        let debug_quad_pass = DebugQuadPass::new(
             device.clone(),
             &swapchain,
             render_area,
             shadow_pass.depth_attachment.view,
-        )?;*/
+        )?;
 
         let main_pass = TestMainPass::new(
             physical_device,
@@ -149,7 +152,7 @@ impl TestRenderer {
             swapchain,
             frame_mgr,
             shadow_pass,
-            //debug_quad_pass,
+            debug_quad_pass,
             main_pass,
 
             start_time: std::time::Instant::now(),
@@ -185,18 +188,18 @@ impl TestRenderer {
         let radius = 8.0; // 원 궤도의 반지름
         let height = 6.0; // 카메라 고도(Y 좌표)
 
-        // ── 1. “빛” 위치를 궤도 위에서 계산 (카메라는 +speed, 빛은 -speed * 2) ──
+        // 빛 위치를 궤도 위에서 계산 (카메라는 +speed, 빛은 -speed * 2)
         let light_x = radius * (-speed * 2.0 * time).cos();
         let light_z = -radius * (-speed * 2.0 * time).sin();
         let light_pos = vec3(light_x, height, light_z);
 
-        // ── 2. Shadow-Pass용 뷰·프로젝션 행렬 ───────────────────────────
+        // Shadow-Pass용 뷰·프로젝션 행렬
         let mut light_proj = Mat4::orthographic_rh(-10.0, 10.0, -10.0, 10.0, -10.0, 20.0);
         light_proj.y_axis.y *= -1.0; // Vulkan Y-flip
         let light_view = Mat4::look_at_rh(light_pos, Vec3::ZERO, Vec3::Y);
         let light_view_proj = light_proj * light_view;
 
-        // ── 3. Shadow UBO 갱신 ─────────────────────────────────────────
+        // Shadow UBO 갱신
         self.shadow_pass
             .update_shadow_ubo(ShadowUBO { light_view_proj });
 
@@ -211,52 +214,54 @@ impl TestRenderer {
             vk::ImageAspectFlags::DEPTH,
         );*/
 
-        /*self.debug_quad_pass
-        .record_commands(cmd_buffer, swapchain_image_idx as usize);*/
+        if DEBUG_QUAD_PASS_ENABLED {
+            self.debug_quad_pass
+                .record_commands(cmd_buffer, swapchain_image_idx as usize);
+        } else {
+            let cam_x = radius * (speed * time).cos();
+            let cam_z = radius * (speed * time).sin();
+            //let cam_x = radius;
+            //let cam_z = radius;
+            let camera_pos = vec3(cam_x, height, cam_z);
 
-        let cam_x = radius * (speed * time).cos();
-        let cam_z = radius * (speed * time).sin();
-        //let cam_x = radius;
-        //let cam_z = radius;
-        let camera_pos = vec3(cam_x, height, cam_z);
+            let view = Mat4::look_at_rh(camera_pos, Vec3::ZERO, Vec3::Y);
+            let mut proj = Mat4::perspective_rh(
+                45.0f32.to_radians(),
+                self.swapchain.extent.width as f32 / self.swapchain.extent.height as f32,
+                0.1,
+                100.0,
+            );
 
-        let view = Mat4::look_at_rh(camera_pos, Vec3::ZERO, Vec3::Y);
-        let mut proj = Mat4::perspective_rh(
-            45.0f32.to_radians(),
-            self.swapchain.extent.width as f32 / self.swapchain.extent.height as f32,
-            0.1,
-            100.0,
-        );
+            // glam은 Y-up, Vulkan은 Y-down. Y축을 뒤집어 보정합니다.
+            proj.y_axis.y *= -1.0;
 
-        // glam은 Y-up, Vulkan은 Y-down. Y축을 뒤집어 보정합니다.
-        proj.y_axis.y *= -1.0;
+            self.main_pass.update_main_ubo(
+                frame_idx,
+                MainUBO {
+                    model: Mat4::IDENTITY,
+                    view,
+                    proj,
+                    light_view_proj,
+                },
+            );
 
-        self.main_pass.update_main_ubo(
-            frame_idx,
-            MainUBO {
-                model: Mat4::IDENTITY,
-                view,
-                proj,
-                light_view_proj,
-            },
-        );
+            // 조명 정보 설정
+            let light_dir = (Vec3::ZERO - light_pos).normalize();
+            let light_ubo = LightUBO {
+                direction: light_dir,
+                _pad1: 0.0,
+                color: vec3(1.0, 1.0, 1.0),
+                _pad2: 0.0,
+            };
+            self.main_pass.update_light_ubo(frame_idx, light_ubo);
 
-        // 조명 정보 설정
-        let light_dir = (Vec3::ZERO - light_pos).normalize();
-        let light_ubo = LightUBO {
-            direction: light_dir,
-            _pad1: 0.0,
-            color: vec3(1.0, 1.0, 1.0),
-            _pad2: 0.0,
-        };
-        self.main_pass.update_light_ubo(frame_idx, light_ubo);
-
-        self.main_pass.record_commands(
-            cmd_buffer,
-            swapchain_image_idx as usize,
-            frame_idx,
-            &mesh_buffers,
-        );
+            self.main_pass.record_commands(
+                cmd_buffer,
+                swapchain_image_idx as usize,
+                frame_idx,
+                &mesh_buffers,
+            );
+        }
 
         self.device.end_command_buffer(cmd_buffer)?;
 

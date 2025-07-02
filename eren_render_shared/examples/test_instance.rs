@@ -20,7 +20,7 @@ pub fn init_logger() {
 }
 
 struct TestWindowEventHandler {
-    window: Arc<Window>,
+    _window: Arc<Window>,
     _instance: Instance,
 }
 
@@ -33,7 +33,7 @@ impl WindowEventHandler for TestWindowEventHandler {
         log::debug!("Instance created");
 
         Self {
-            window,
+            _window: window,
             _instance: instance,
         }
     }

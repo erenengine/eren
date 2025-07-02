@@ -28,10 +28,10 @@ glslc examples/test_compute_shader/shaders/shader.vert -o examples/test_compute_
 glslc examples/test_compute_shader/shaders/shader.frag -o examples/test_compute_shader/shaders/shader.frag.spv
 
 glslc examples/test_shadow/shaders/shadow.vert -o examples/test_shadow/shaders/shadow.vert.spv
-glslc examples/test_shadow/shaders/main.vert -o examples/test_shadow/shaders/main.vert.spv
-glslc examples/test_shadow/shaders/main.frag -o examples/test_shadow/shaders/main.frag.spv
 glslc examples/test_shadow/shaders/debug_quad.vert -o examples/test_shadow/shaders/debug_quad.vert.spv
 glslc examples/test_shadow/shaders/debug_quad.frag -o examples/test_shadow/shaders/debug_quad.frag.spv
+glslc examples/test_shadow/shaders/main.vert -o examples/test_shadow/shaders/main.vert.spv
+glslc examples/test_shadow/shaders/main.frag -o examples/test_shadow/shaders/main.frag.spv
 ```
 
 ## 테스트

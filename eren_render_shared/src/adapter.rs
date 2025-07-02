@@ -1,3 +1,5 @@
+use thiserror::Error;
+
 use crate::{instance::Instance, surface::Surface};
 
 pub struct Adapter {
@@ -6,6 +8,8 @@ pub struct Adapter {
     pub preferred_surface_format: wgpu::TextureFormat,
     pub preferred_present_mode: wgpu::PresentMode,
     pub preferred_alpha_mode: wgpu::CompositeAlphaMode,
+
+    pub depth_format: wgpu::TextureFormat,
 }
 
 fn select_preferred_surface_format(formats: &[wgpu::TextureFormat]) -> wgpu::TextureFormat {
@@ -18,11 +22,47 @@ fn select_preferred_surface_format(formats: &[wgpu::TextureFormat]) -> wgpu::Tex
         .unwrap_or_else(|| formats[0])
 }
 
+#[derive(Debug, Error)]
+#[error("Failed to find supported format: {0}")]
+pub struct FindSupportedFormatError(String);
+
+fn find_depth_format(
+    adapter: &wgpu::Adapter,
+) -> Result<wgpu::TextureFormat, FindSupportedFormatError> {
+    let candidate_formats = [
+        wgpu::TextureFormat::Depth32Float,
+        wgpu::TextureFormat::Depth24Plus,
+        wgpu::TextureFormat::Depth24PlusStencil8,
+    ];
+
+    candidate_formats
+        .iter()
+        .find(|&&f| {
+            let features = adapter.get_texture_format_features(f);
+            features
+                .allowed_usages
+                .contains(wgpu::TextureUsages::RENDER_ATTACHMENT)
+        })
+        .cloned()
+        .ok_or(FindSupportedFormatError(
+            "No supported depth format found".to_string(),
+        ))
+}
+
+#[derive(Debug, Error)]
+pub enum AdapterInitializationError {
+    #[error("Failed to request adapter: {0}")]
+    RequestAdapter(#[from] wgpu::RequestAdapterError),
+
+    #[error("Failed to find supported format: {0}")]
+    FindSupportedFormat(#[from] FindSupportedFormatError),
+}
+
 impl Adapter {
     pub async fn new<'window>(
         instance: &Instance,
         surface: &Surface<'window>,
-    ) -> Result<Self, wgpu::RequestAdapterError> {
+    ) -> Result<Self, AdapterInitializationError> {
         let compatible_surface = Some(surface.get_compatible_surface());
         let handle = instance.request_adapter(compatible_surface).await?;
 
@@ -30,6 +70,7 @@ impl Adapter {
         let preferred_surface_format = select_preferred_surface_format(&surface_caps.formats);
         let preferred_present_mode = surface_caps.present_modes[0];
         let preferred_alpha_mode = surface_caps.alpha_modes[0];
+        let depth_format = find_depth_format(&handle)?;
 
         Ok(Self {
             handle,
@@ -37,6 +78,8 @@ impl Adapter {
             preferred_surface_format,
             preferred_present_mode,
             preferred_alpha_mode,
+
+            depth_format,
         })
     }
 
