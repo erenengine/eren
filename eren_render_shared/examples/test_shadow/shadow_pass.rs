@@ -4,10 +4,10 @@ use crate::test_shadow::{mesh::MeshBuffer, ubo::ShadowUBO, vertex::VERTEX_DESC};
 
 const SHADER_STR: &str = include_str!("./shaders/shadow.wgsl");
 
-const CLEAR_COLOR: f32 = 1.0;
+const CLEAR_DEPTH: f32 = 1.0;
 
 pub struct ShadowPass {
-    pub depth_texture_view: wgpu::TextureView,
+    pub shadow_texture_view: wgpu::TextureView,
 
     uniform_buffer: wgpu::Buffer,
     bind_group: wgpu::BindGroup,
@@ -42,7 +42,8 @@ impl ShadowPass {
             view_formats: &[],
         });
 
-        let depth_texture_view = depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let shadow_texture_view =
+            depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         let uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Shadow UBO"),
@@ -102,7 +103,11 @@ impl ShadowPass {
                 depth_write_enabled: true,
                 depth_compare: wgpu::CompareFunction::Less,
                 stencil: Default::default(),
-                bias: Default::default(),
+                bias: wgpu::DepthBiasState {
+                    constant: 2,
+                    slope_scale: 4.0,
+                    clamp: 0.0,
+                },
             }),
             multisample: Default::default(),
             multiview: None,
@@ -110,7 +115,7 @@ impl ShadowPass {
         });
 
         Self {
-            depth_texture_view,
+            shadow_texture_view,
 
             uniform_buffer,
             bind_group,
@@ -135,9 +140,9 @@ impl ShadowPass {
             label: Some("Shadow Render Pass"),
             color_attachments: &[],
             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                view: &self.depth_texture_view,
+                view: &self.shadow_texture_view,
                 depth_ops: Some(wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(CLEAR_COLOR),
+                    load: wgpu::LoadOp::Clear(CLEAR_DEPTH),
                     store: wgpu::StoreOp::Store,
                 }),
                 stencil_ops: None,

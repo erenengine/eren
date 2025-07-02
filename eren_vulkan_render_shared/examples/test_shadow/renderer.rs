@@ -25,7 +25,7 @@ use crate::test_shadow::{
 
 use super::debug_quad_pass::DebugQuadPassInitializationError;
 
-const DEBUG_QUAD_PASS_ENABLED: bool = true;
+const DEBUG_QUAD_PASS_ENABLED: bool = false;
 
 pub struct TestRenderer {
     device: Arc<Device>,

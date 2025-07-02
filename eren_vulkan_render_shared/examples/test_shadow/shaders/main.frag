@@ -28,7 +28,7 @@ float calculateShadow(vec4 shadowCoord) {
 
     // self-shadowing 방지를 위한 bias
     float bias = max(0.005 * (1.0 - dot(normalize(normalWorld), normalize(-light.direction))), 0.0005);
-    
+
     float shadow = 0.0;
     float texelSize = 1.0 / 2048.0; // 그림자 맵 해상도에 맞게 설정
 
@@ -56,7 +56,7 @@ void main() {
     // Diffuse 조명
     float diff = max(dot(norm, lightDir), 0.0);
     vec3 diffuse = light.color * diff;
-    
+
     float shadow = calculateShadow(shadowCoord);
 
     vec3 baseColor;
@@ -65,7 +65,7 @@ void main() {
     } else { // 그 외는 큐브
         baseColor = vec3(1.0, 0.7, 0.2); // 오렌지색 큐브
     }
-    
+
     vec3 lighting = ambient + (1.0 - shadow) * diffuse;
 
     outColor = vec4(baseColor * lighting, 1.0);

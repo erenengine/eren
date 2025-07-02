@@ -2,15 +2,21 @@ use chrono::Utc;
 use eren_render_shared::{adapter::Adapter, device::Device, surface::Surface};
 use glam::{Mat4, Vec3, vec3};
 
-use crate::test_shadow::{debug_quad_pass::DebugQuadPass, mesh::MeshBuffer, ubo::ShadowUBO};
+use crate::test_shadow::{
+    debug_quad_pass::DebugQuadPass,
+    main_pass::MainPass,
+    mesh::MeshBuffer,
+    ubo::{LightUBO, MainUBO, ShadowUBO},
+};
 
 use super::shadow_pass::ShadowPass;
 
-const DEBUG_QUAD_PASS_ENABLED: bool = true;
+const DEBUG_QUAD_PASS_ENABLED: bool = false;
 
 pub struct TestRenderer {
     shadow_pass: ShadowPass,
     debug_quad_pass: DebugQuadPass,
+    main_pass: MainPass,
 
     start_time: chrono::DateTime<chrono::Utc>,
 }
@@ -19,10 +25,19 @@ impl TestRenderer {
     pub fn new(adapter: &Adapter, device: &Device, window_width: u32, window_height: u32) -> Self {
         let shadow_pass =
             ShadowPass::new(device, adapter.depth_format, window_width, window_height);
-        let debug_quad_pass = DebugQuadPass::new(device, &shadow_pass.depth_texture_view);
+        let debug_quad_pass = DebugQuadPass::new(device, &shadow_pass.shadow_texture_view);
+        let main_pass = MainPass::new(
+            device,
+            adapter.preferred_surface_format,
+            adapter.depth_format,
+            &shadow_pass.shadow_texture_view,
+            window_width,
+            window_height,
+        );
         Self {
             shadow_pass,
             debug_quad_pass,
+            main_pass,
 
             start_time: Utc::now(),
         }
@@ -33,9 +48,11 @@ impl TestRenderer {
         surface: &Surface,
         device: &Device,
         mesh_buffers: &[MeshBuffer],
+        window_width: u32,
+        window_height: u32,
     ) -> Result<(), wgpu::SurfaceError> {
-        let output = surface.get_current_texture()?;
-        let view = output
+        let output: wgpu::SurfaceTexture = surface.get_current_texture()?;
+        let surface_view = output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
@@ -54,8 +71,8 @@ impl TestRenderer {
         let height = 6.0; // 카메라 고도(Y 좌표)
 
         // 빛 위치를 궤도 위에서 계산 (카메라는 +speed, 빛은 -speed * 2)
-        let light_x = radius * (-speed * 2.0 * time).cos();
-        let light_z = -radius * (-speed * 2.0 * time).sin();
+        let light_x = radius * (speed * 2.0 * time).cos();
+        let light_z = -radius * (speed * 2.0 * time).sin();
         let light_pos = vec3(light_x, height, light_z);
 
         // Shadow-Pass용 뷰·프로젝션 행렬
@@ -68,7 +85,48 @@ impl TestRenderer {
             .update_shadow_ubo(&device.queue, ShadowUBO { light_view_proj });
 
         self.shadow_pass.record_commands(&mut encoder, mesh_buffers);
-        self.debug_quad_pass.record_commands(&mut encoder, &view);
+
+        if DEBUG_QUAD_PASS_ENABLED {
+            self.debug_quad_pass
+                .record_commands(&mut encoder, &surface_view);
+        } else {
+            let cam_x = radius * (-speed * time).cos();
+            let cam_z = radius * (-speed * time).sin();
+            //let cam_x = radius;
+            //let cam_z = radius;
+            let camera_pos = vec3(cam_x, height, cam_z);
+
+            let view = Mat4::look_at_rh(camera_pos, Vec3::ZERO, Vec3::Y);
+            let proj = Mat4::perspective_rh(
+                45.0f32.to_radians(),
+                window_width as f32 / window_height as f32,
+                0.1,
+                100.0,
+            );
+
+            self.main_pass.update_main_ubo(
+                &device.queue,
+                &MainUBO {
+                    model: Mat4::IDENTITY,
+                    view,
+                    proj,
+                    light_view_proj,
+                },
+            );
+
+            // 조명 정보 설정
+            let light_dir = (Vec3::ZERO - light_pos).normalize();
+            let light_ubo = LightUBO {
+                direction: light_dir,
+                _pad1: 0.0,
+                color: vec3(1.0, 1.0, 1.0),
+                _pad2: 0.0,
+            };
+            self.main_pass.update_light_ubo(&device.queue, &light_ubo);
+
+            self.main_pass
+                .record_commands(&mut encoder, &surface_view, &mesh_buffers);
+        }
 
         device.queue.submit(std::iter::once(encoder.finish()));
         output.present();

@@ -19,13 +19,13 @@ pub fn init_logger() {
 }
 
 struct TestWindowEventHandler {
-    window: Arc<Window>,
+    _window: Arc<Window>,
 }
 
 impl WindowEventHandler for TestWindowEventHandler {
     async fn new(window: Arc<Window>) -> Self {
         log::debug!("Window created");
-        Self { window }
+        Self { _window: window }
     }
 
     fn on_resized(&mut self, width: u32, height: u32) {

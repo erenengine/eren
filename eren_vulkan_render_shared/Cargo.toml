@@ -13,4 +13,5 @@ log = "0.4.27"
 env_logger = "0.11.8"
 
 [dev-dependencies]
-glam = "0.30.4"
+glam = { version = "0.30.4", features = ["bytemuck"] }
+bytemuck = "1.23.1"

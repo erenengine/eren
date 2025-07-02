@@ -15,7 +15,7 @@ pub struct DebugQuadPass {
 }
 
 impl DebugQuadPass {
-    pub fn new(device: &Device, depth_texture_view: &wgpu::TextureView) -> Self {
+    pub fn new(device: &Device, shadow_texture_view: &wgpu::TextureView) -> Self {
         let shader_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Debug Quad Shader"),
             source: wgpu::ShaderSource::Wgsl(SHADER_STR.into()),
@@ -63,7 +63,7 @@ impl DebugQuadPass {
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: wgpu::BindingResource::TextureView(depth_texture_view),
+                    resource: wgpu::BindingResource::TextureView(shadow_texture_view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,

@@ -7,7 +7,7 @@ pub struct ShadowUBO {
 }
 
 #[repr(C, align(16))]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct MainUBO {
     pub model: Mat4,
     pub view: Mat4,
@@ -16,7 +16,7 @@ pub struct MainUBO {
 }
 
 #[repr(C, align(16))]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct LightUBO {
     pub direction: Vec3,
     pub _pad1: f32,
