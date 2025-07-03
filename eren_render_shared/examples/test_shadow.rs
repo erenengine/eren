@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use eren_render_shared::{adapter::Adapter, device::Device, instance::Instance, surface::Surface};
 use eren_window::window::{WindowConfig, WindowEventHandler, WindowLifecycle};
+use glam::vec3;
 use winit::window::Window;
 
 use crate::test_shadow::{mesh::MeshBuffer, renderer::TestRenderer, vertex::Vertex};
@@ -17,8 +18,6 @@ mod test_shadow {
 }
 
 fn create_ground_plane() -> (Vec<Vertex>, Vec<u16>) {
-    use glam::vec3;
-
     // 지면은 XY 평면상에 z = 0
     // Y축이 위쪽이라면, 바닥은 -Y쪽 법선
     let normal = vec3(0.0, 1.0, 0.0);
@@ -45,8 +44,6 @@ fn create_ground_plane() -> (Vec<Vertex>, Vec<u16>) {
 }
 
 fn create_cube_mesh() -> (Vec<Vertex>, Vec<u16>) {
-    use glam::vec3;
-
     let positions = [
         // Front face
         (vec3(-0.5, -0.5, 0.5), vec3(0.0, 0.0, 1.0)),
