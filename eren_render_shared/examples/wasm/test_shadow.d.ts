@@ -15,17 +15,17 @@ export interface InitOutput {
   readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
   readonly __wbindgen_free: (a: number, b: number, c: number) => void;
   readonly __wbindgen_export_6: WebAssembly.Table;
+  readonly closure306_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure314_externref_shim: (a: number, b: number, c: any, d: any) => void;
   readonly closure310_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure318_externref_shim: (a: number, b: number, c: any, d: any) => void;
-  readonly closure314_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure304_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure316_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure300_externref_shim: (a: number, b: number, c: any) => void;
   readonly closure312_externref_shim: (a: number, b: number, c: any) => void;
   readonly closure308_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure306_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure304_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure302_externref_shim: (a: number, b: number, c: any) => void;
   readonly _dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__hdd41d9e0ecd39422: (a: number, b: number) => void;
-  readonly closure491_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure1162_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure487_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure1158_externref_shim: (a: number, b: number, c: any) => void;
   readonly __wbindgen_start: () => void;
 }
 
