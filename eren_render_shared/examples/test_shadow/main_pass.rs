@@ -17,13 +17,12 @@ const CLEAR_DEPTH: f32 = 1.0;
 pub struct MainPass {
     pipeline: wgpu::RenderPipeline,
 
-    bind_group_layout_shadow: wgpu::BindGroupLayout,
-    shadow_sampler: wgpu::Sampler,
-
     main_ubo_buffer: wgpu::Buffer,
     light_ubo_buffer: wgpu::Buffer,
+    bind_group_main: wgpu::BindGroup, // set=0
 
-    bind_group_main: wgpu::BindGroup,   // set=0
+    bind_group_layout_shadow: wgpu::BindGroupLayout,
+    shadow_sampler: wgpu::Sampler,
     bind_group_shadow: wgpu::BindGroup, // set=1
 
     scene_depth_view: wgpu::TextureView,
