@@ -31,7 +31,7 @@ pub fn create_vertex_buffer(device: &Device, vertices: &[Vertex]) -> wgpu::Buffe
     let vertex_size = (std::mem::size_of::<Vertex>() * vertices.len()) as wgpu::BufferAddress;
 
     let buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("Test Buffer"),
+        label: Some("Test Vertex Buffer"),
         size: vertex_size,
         usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
         mapped_at_creation: false,
@@ -53,7 +53,7 @@ pub fn create_index_buffer(device: &Device, indices: &[u16]) -> wgpu::Buffer {
     let index_size = (std::mem::size_of::<u16>() * indices.len()) as wgpu::BufferAddress;
 
     let buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("Test Buffer"),
+        label: Some("Test Index Buffer"),
         size: index_size,
         usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
         mapped_at_creation: false,
