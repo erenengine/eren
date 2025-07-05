@@ -15,6 +15,7 @@ RUST_LOG=debug cargo run --example test_storage_buffer
 RUST_LOG=debug cargo run --example test_depth_buffer
 RUST_LOG=debug cargo run --example test_compute_shader
 RUST_LOG=debug cargo run --example test_shadow
+RUST_LOG=debug cargo run --example test_texture
 ```
 
 ```
