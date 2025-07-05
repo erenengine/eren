@@ -1,0 +1,11 @@
+[package]
+name = "test_shared_array_buffer"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "test_shared_array_buffer"
+crate-type = ["staticlib", "cdylib"]
+
+[dependencies]
+log = "0.4.27"

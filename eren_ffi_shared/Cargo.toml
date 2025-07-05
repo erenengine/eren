@@ -1,21 +1,17 @@
 [package]
-name = "eren_render_shared"
+name = "eren_ffi_shared"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+name = "eren_ffi_shared"
+crate-type = ["staticlib", "cdylib"]
+
 [dependencies]
-eren_window = { path = "../eren_window" }
 log = "0.4.27"
-thiserror = "2.0.12"
-wgpu = { version = "25.0.2", features = ["webgl"] }
-winit = "0.30.11"
 
 [dev-dependencies]
 env_logger = "0.11.8"
-chrono = "0.4.41"
-glam = { version = "0.30.4", features = ["bytemuck"] }
-bytemuck = "1.23.1"
-image = "0.25.6"
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 console_error_panic_hook = "0.1.7"

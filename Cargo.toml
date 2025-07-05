@@ -4,4 +4,5 @@ members = [
     "eren_window",
     "eren_vulkan_render_shared",
     "eren_render_shared",
+    "eren_ffi_shared",
 ]
