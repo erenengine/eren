@@ -37,6 +37,39 @@ impl CommandPool {
         self.device
             .copy_command_buffer(self.handle, src_buffer, dst_buffer, size)
     }
+
+    pub fn transition_image_layout(
+        &self,
+        image: vk::Image,
+        src_access_mask: vk::AccessFlags,
+        dst_access_mask: vk::AccessFlags,
+        old_layout: vk::ImageLayout,
+        new_layout: vk::ImageLayout,
+        src_stage: vk::PipelineStageFlags,
+        dst_stage: vk::PipelineStageFlags,
+    ) -> Result<(), CopyCommandBufferError> {
+        self.device.transition_image_layout(
+            self.handle,
+            image,
+            src_access_mask,
+            dst_access_mask,
+            old_layout,
+            new_layout,
+            src_stage,
+            dst_stage,
+        )
+    }
+
+    pub fn copy_buffer_to_image(
+        &self,
+        src_buffer: vk::Buffer,
+        dst_image: vk::Image,
+        width: u32,
+        height: u32,
+    ) -> Result<(), CopyCommandBufferError> {
+        self.device
+            .copy_buffer_to_image(self.handle, src_buffer, dst_image, width, height)
+    }
 }
 
 impl Drop for CommandPool {

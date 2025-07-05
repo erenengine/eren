@@ -122,13 +122,25 @@ pub struct CommandBufferBeginError(String);
 pub struct CommandBufferEndError(String);
 
 #[derive(Debug, Error)]
-pub enum CopyCommandBufferError {
+pub enum SingleTimeCommandBufferError {
     #[error("Failed to allocate command buffer: {0}")]
     AllocateCommandBuffer(#[from] CommandBufferAllocationError),
 
     #[error("Failed to begin command buffer: {0}")]
     BeginCommandBuffer(#[from] CommandBufferBeginError),
+}
 
+#[derive(Debug, Error)]
+pub enum CopyCommandBufferError {
+    #[error("Failed to begin single time command buffer: {0}")]
+    BeginSingleTimeCommandBuffer(#[from] SingleTimeCommandBufferError),
+
+    #[error("Failed to end command buffer and submit to graphics queue: {0}")]
+    EndCommandBufferAndSubmitToGraphicsQueue(#[from] CommandBufferEndAndSubmitError),
+}
+
+#[derive(Debug, Error)]
+pub enum CommandBufferEndAndSubmitError {
     #[error("Failed to end command buffer: {0}")]
     EndCommandBuffer(#[from] CommandBufferEndError),
 
@@ -212,6 +224,15 @@ impl Device {
         Ok(())
     }
 
+    fn begin_single_time_command_buffer(
+        &self,
+        command_pool: vk::CommandPool,
+    ) -> Result<vk::CommandBuffer, SingleTimeCommandBufferError> {
+        let command_buffer = self.allocate_command_buffers(command_pool, 1)?[0];
+        self.begin_command_buffer(command_buffer)?;
+        Ok(command_buffer)
+    }
+
     pub fn copy_command_buffer(
         &self,
         command_pool: vk::CommandPool,
@@ -219,9 +240,7 @@ impl Device {
         dst_buffer: vk::Buffer,
         size: vk::DeviceSize,
     ) -> Result<(), CopyCommandBufferError> {
-        let command_buffer = self.allocate_command_buffers(command_pool, 1)?[0];
-
-        self.begin_command_buffer(command_buffer)?;
+        let command_buffer = self.begin_single_time_command_buffer(command_pool)?;
 
         let copy_region = vk::BufferCopy::default()
             .src_offset(0) // Optional
@@ -233,23 +252,90 @@ impl Device {
                 .cmd_copy_buffer(command_buffer, src_buffer, dst_buffer, &[copy_region]);
         }
 
-        self.end_command_buffer(command_buffer)?;
+        self.end_command_buffer_and_submit_to_graphics_queue(command_buffer)?;
+        Ok(())
+    }
 
-        let submit_info =
-            vk::SubmitInfo::default().command_buffers(std::slice::from_ref(&command_buffer));
+    pub fn transition_image_layout(
+        &self,
+        command_pool: vk::CommandPool,
+        image: vk::Image,
+        src_access_mask: vk::AccessFlags,
+        dst_access_mask: vk::AccessFlags,
+        old_layout: vk::ImageLayout,
+        new_layout: vk::ImageLayout,
+        src_stage: vk::PipelineStageFlags,
+        dst_stage: vk::PipelineStageFlags,
+    ) -> Result<(), CopyCommandBufferError> {
+        let command_buffer = self.begin_single_time_command_buffer(command_pool)?;
+
+        let barrier = vk::ImageMemoryBarrier::default()
+            .image(image)
+            .src_access_mask(src_access_mask)
+            .dst_access_mask(dst_access_mask)
+            .old_layout(old_layout)
+            .new_layout(new_layout)
+            .subresource_range(vk::ImageSubresourceRange {
+                aspect_mask: vk::ImageAspectFlags::COLOR,
+                base_mip_level: 0,
+                level_count: 1,
+                base_array_layer: 0,
+                layer_count: 1,
+            });
 
         unsafe {
-            let graphics_queue = self.graphics_queue.expect("Graphics queue not found");
-
-            self.handle
-                .queue_submit(graphics_queue, &[submit_info], vk::Fence::null())
-                .map_err(|e| CopyCommandBufferError::SubmitQueue(e.to_string()))?;
-
-            self.handle
-                .queue_wait_idle(graphics_queue)
-                .map_err(|e| CopyCommandBufferError::WaitQueue(e.to_string()))?;
+            self.handle.cmd_pipeline_barrier(
+                command_buffer,
+                src_stage,
+                dst_stage,
+                vk::DependencyFlags::empty(),
+                &[],
+                &[],
+                &[barrier],
+            );
         }
 
+        self.end_command_buffer_and_submit_to_graphics_queue(command_buffer)?;
+        Ok(())
+    }
+
+    pub fn copy_buffer_to_image(
+        &self,
+        command_pool: vk::CommandPool,
+        src_buffer: vk::Buffer,
+        dst_image: vk::Image,
+        width: u32,
+        height: u32,
+    ) -> Result<(), CopyCommandBufferError> {
+        let command_buffer = self.begin_single_time_command_buffer(command_pool)?;
+
+        let copy_region = vk::BufferImageCopy::default()
+            .buffer_offset(0) // Optional
+            .buffer_row_length(0) // Optional
+            .buffer_image_height(0) // Optional
+            .image_subresource(
+                vk::ImageSubresourceLayers::default()
+                    .aspect_mask(vk::ImageAspectFlags::COLOR)
+                    .layer_count(1),
+            )
+            .image_offset(vk::Offset3D::default())
+            .image_extent(vk::Extent3D {
+                width,
+                height,
+                depth: 1,
+            });
+
+        unsafe {
+            self.handle.cmd_copy_buffer_to_image(
+                command_buffer,
+                src_buffer,
+                dst_image,
+                vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+                &[copy_region],
+            );
+        }
+
+        self.end_command_buffer_and_submit_to_graphics_queue(command_buffer)?;
         Ok(())
     }
 
@@ -261,6 +347,30 @@ impl Device {
             self.handle
                 .end_command_buffer(command_buffer)
                 .map_err(|e| CommandBufferEndError(e.to_string()))?;
+        }
+
+        Ok(())
+    }
+
+    fn end_command_buffer_and_submit_to_graphics_queue(
+        &self,
+        command_buffer: vk::CommandBuffer,
+    ) -> Result<(), CommandBufferEndAndSubmitError> {
+        self.end_command_buffer(command_buffer)?;
+
+        let submit_info =
+            vk::SubmitInfo::default().command_buffers(std::slice::from_ref(&command_buffer));
+
+        unsafe {
+            let graphics_queue = self.graphics_queue.expect("Graphics queue not found");
+
+            self.handle
+                .queue_submit(graphics_queue, &[submit_info], vk::Fence::null())
+                .map_err(|e| CommandBufferEndAndSubmitError::SubmitQueue(e.to_string()))?;
+
+            self.handle
+                .queue_wait_idle(graphics_queue)
+                .map_err(|e| CommandBufferEndAndSubmitError::WaitQueue(e.to_string()))?;
         }
 
         Ok(())

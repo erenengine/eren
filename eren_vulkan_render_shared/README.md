@@ -32,6 +32,9 @@ glslc examples/test_shadow/shaders/debug_quad.vert -o examples/test_shadow/shade
 glslc examples/test_shadow/shaders/debug_quad.frag -o examples/test_shadow/shaders/debug_quad.frag.spv
 glslc examples/test_shadow/shaders/main.vert -o examples/test_shadow/shaders/main.vert.spv
 glslc examples/test_shadow/shaders/main.frag -o examples/test_shadow/shaders/main.frag.spv
+
+glslc examples/test_texture/shaders/shader.vert -o examples/test_texture/shaders/shader.vert.spv
+glslc examples/test_texture/shaders/shader.frag -o examples/test_texture/shaders/shader.frag.spv
 ```
 
 ## 테스트
@@ -54,4 +57,5 @@ RUST_LOG=debug cargo run --example test_storage_buffer
 RUST_LOG=debug cargo run --example test_depth_buffer
 RUST_LOG=debug cargo run --example test_compute_shader
 RUST_LOG=debug cargo run --example test_shadow
+RUST_LOG=debug cargo run --example test_texture
 ```
