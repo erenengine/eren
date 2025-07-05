@@ -22,3 +22,4 @@ web-sys = { version = "0.3.77", features = ["Window", "console"] }
 chrono = "0.4.41"
 glam = { version = "0.30.4", features = ["bytemuck"] }
 bytemuck = "1.23.1"
+image = "0.25.6"
