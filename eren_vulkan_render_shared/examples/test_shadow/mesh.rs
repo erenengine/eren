@@ -79,7 +79,7 @@ impl MeshBuffer {
             },
         ];
 
-        device.upload_slices_to_memory(staging_memory, total_size, &slices)?;
+        device.upload_slices_to_memory(&slices, total_size, staging_memory)?;
 
         let (buffer, memory) = device.create_buffer_with_memory(
             total_size,

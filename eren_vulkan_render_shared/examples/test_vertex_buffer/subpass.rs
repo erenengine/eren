@@ -84,7 +84,7 @@ pub fn create_vertex_buffer(
         dst_offset: 0,
     }];
 
-    device.upload_slices_to_memory(staging_memory, vertex_size, &slices)?;
+    device.upload_slices_to_memory(&slices, vertex_size, staging_memory)?;
 
     let (buffer, memory) = device.create_buffer_with_memory(
         vertex_size,

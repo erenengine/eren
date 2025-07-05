@@ -616,11 +616,28 @@ impl Device {
         })
     }
 
+    pub fn upload_data_to_memory(
+        &self,
+        data: &[u8],
+        memory: vk::DeviceMemory,
+    ) -> Result<(), MapMemoryError> {
+        unsafe {
+            let data_len = data.len();
+            let data_size = data_len as vk::DeviceSize;
+            let data_ptr = self.map_memory(memory, data_size)? as *mut u8;
+
+            data_ptr.copy_from_nonoverlapping(data.as_ptr(), data_len);
+
+            self.handle.unmap_memory(memory);
+        }
+        Ok(())
+    }
+
     pub fn upload_slices_to_memory(
         &self,
-        memory: vk::DeviceMemory,
-        total_size: vk::DeviceSize,
         slices: &[MemoryUploadSlice],
+        total_size: vk::DeviceSize,
+        memory: vk::DeviceMemory,
     ) -> Result<(), MapMemoryError> {
         unsafe {
             let data_ptr = self.map_memory(memory, total_size)? as *mut u8;

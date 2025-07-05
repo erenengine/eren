@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use glam::Vec3;
+use glam::{Vec2, Vec3};
 
 use ash::vk;
 use eren_vulkan_render_shared::{
@@ -8,8 +8,8 @@ use eren_vulkan_render_shared::{
     device::{
         BufferWithMemoryCreationError, CopyCommandBufferError, DescriptorPoolCreationError,
         DescriptorSetAllocationError, DescriptorSetLayoutCreationError, Device,
-        GraphicsPipelineCreationError, ImageWithMemoryCreationError, MapMemoryError,
-        MemoryUploadSlice, PipelineLayoutCreationError,
+        GraphicsPipelineCreationError, ImageViewCreationError, ImageWithMemoryCreationError,
+        MapMemoryError, MemoryUploadSlice, PipelineLayoutCreationError, SamplerCreationError,
     },
     frame::MAX_FRAMES_IN_FLIGHT,
     physical_device::PhysicalDevice,
@@ -26,34 +26,42 @@ const TEST_VERTICES: [Vertex; 8] = [
     Vertex {
         pos: Vec3::new(-0.5, -0.5, 0.0),
         color: Vec3::new(1.0, 0.0, 0.0),
+        tex_coords: Vec2::new(0.0, 0.0),
     },
     Vertex {
         pos: Vec3::new(0.5, -0.5, 0.0),
         color: Vec3::new(0.0, 1.0, 0.0),
+        tex_coords: Vec2::new(1.0, 0.0),
     },
     Vertex {
         pos: Vec3::new(0.5, 0.5, 0.0),
         color: Vec3::new(0.0, 0.0, 1.0),
+        tex_coords: Vec2::new(1.0, 1.0),
     },
     Vertex {
         pos: Vec3::new(-0.5, 0.5, 0.0),
         color: Vec3::new(1.0, 1.0, 1.0),
+        tex_coords: Vec2::new(0.0, 1.0),
     },
     Vertex {
         pos: Vec3::new(-0.5, -0.5, -0.5),
         color: Vec3::new(1.0, 0.0, 0.0),
+        tex_coords: Vec2::new(0.0, 0.0),
     },
     Vertex {
         pos: Vec3::new(0.5, -0.5, -0.5),
         color: Vec3::new(0.0, 1.0, 0.0),
+        tex_coords: Vec2::new(1.0, 0.0),
     },
     Vertex {
         pos: Vec3::new(0.5, 0.5, -0.5),
         color: Vec3::new(0.0, 0.0, 1.0),
+        tex_coords: Vec2::new(1.0, 1.0),
     },
     Vertex {
         pos: Vec3::new(-0.5, 0.5, -0.5),
         color: Vec3::new(1.0, 1.0, 1.0),
+        tex_coords: Vec2::new(0.0, 1.0),
     },
 ];
 
@@ -120,7 +128,7 @@ pub fn create_combined_buffer(
         },
     ];
 
-    device.upload_slices_to_memory(staging_memory, total_size, &slices)?;
+    device.upload_slices_to_memory(&slices, total_size, staging_memory)?;
 
     let (buffer, memory) = device.create_buffer_with_memory(
         total_size,
@@ -149,6 +157,8 @@ pub struct TestSubpass {
     staging_buffer_memory: vk::DeviceMemory,
     texture_image: vk::Image,
     texture_image_memory: vk::DeviceMemory,
+    texture_image_view: vk::ImageView,
+    texture_sampler: vk::Sampler,
 
     descriptor_set_layout: vk::DescriptorSetLayout,
     pipeline_layout: vk::PipelineLayout,
@@ -174,6 +184,12 @@ pub enum TestSubpassInitializationError {
 
     #[error("Failed to copy buffer to image: {0}")]
     CopyBufferToImage(#[from] CopyCommandBufferError),
+
+    #[error("Failed to create image view: {0}")]
+    CreateImageView(#[from] ImageViewCreationError),
+
+    #[error("Failed to create sampler: {0}")]
+    CreateSampler(#[from] SamplerCreationError),
 
     #[error("Failed to create descriptor set layout: {0}")]
     CreateDescriptorSetLayout(#[from] DescriptorSetLayoutCreationError),
@@ -209,7 +225,7 @@ impl TestSubpass {
         render_pass: vk::RenderPass,
         subpass_index: u32,
     ) -> Result<Self, TestSubpassInitializationError> {
-        let diffuse_bytes = include_bytes!("assets/logo.png");
+        let diffuse_bytes = include_bytes!("assets/logo.jpg");
         let diffuse_image = image::load_from_memory(diffuse_bytes)?;
         let diffuse_rgba = diffuse_image.to_rgba8().into_raw();
         let dimensions = diffuse_image.dimensions();
@@ -221,12 +237,7 @@ impl TestSubpass {
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
         )?;
 
-        let slices = [MemoryUploadSlice {
-            src: &diffuse_rgba,
-            dst_offset: 0,
-        }];
-
-        device.upload_slices_to_memory(staging_buffer_memory, image_size, &slices)?;
+        device.upload_data_to_memory(&diffuse_rgba, staging_buffer_memory)?;
 
         let (texture_image, texture_image_memory) = device.create_image_with_memory(
             vk::Format::R8G8B8A8_SRGB,
@@ -267,13 +278,32 @@ impl TestSubpass {
             vk::PipelineStageFlags::FRAGMENT_SHADER,
         )?;
 
+        let texture_image_view = device.create_image_view(
+            texture_image,
+            vk::Format::R8G8B8A8_SRGB,
+            vk::ImageAspectFlags::COLOR,
+        )?;
+
+        let sampler_info = vk::SamplerCreateInfo::default()
+            .mag_filter(vk::Filter::LINEAR)
+            .min_filter(vk::Filter::LINEAR);
+
+        let texture_sampler = device.create_sampler(&sampler_info)?;
+
         let ubo_layout_binding = vk::DescriptorSetLayoutBinding::default()
             .binding(0)
             .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
             .descriptor_count(1)
             .stage_flags(vk::ShaderStageFlags::VERTEX);
 
-        let descriptor_set_layout = device.create_descriptor_set_layout(&[ubo_layout_binding])?;
+        let sampler_layout_binding = vk::DescriptorSetLayoutBinding::default()
+            .binding(1)
+            .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+            .descriptor_count(1)
+            .stage_flags(vk::ShaderStageFlags::FRAGMENT);
+
+        let descriptor_set_layout =
+            device.create_descriptor_set_layout(&[ubo_layout_binding, sampler_layout_binding])?;
 
         let pipeline_layout = device.create_pipeline_layout(&[descriptor_set_layout], &[])?;
 
@@ -405,10 +435,16 @@ impl TestSubpass {
 
         let descriptor_pool = device.create_descriptor_pool(
             MAX_FRAMES_IN_FLIGHT as u32,
-            &[vk::DescriptorPoolSize {
-                ty: vk::DescriptorType::UNIFORM_BUFFER,
-                descriptor_count: MAX_FRAMES_IN_FLIGHT as u32,
-            }],
+            &[
+                vk::DescriptorPoolSize {
+                    ty: vk::DescriptorType::UNIFORM_BUFFER,
+                    descriptor_count: MAX_FRAMES_IN_FLIGHT as u32,
+                },
+                vk::DescriptorPoolSize {
+                    ty: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
+                    descriptor_count: MAX_FRAMES_IN_FLIGHT as u32,
+                },
+            ],
         )?;
 
         let descriptor_set_layouts = vec![descriptor_set_layout; MAX_FRAMES_IN_FLIGHT];
@@ -434,14 +470,29 @@ impl TestSubpass {
             };
 
             let buffer_infos = [buffer_info];
-            let descriptor_write = vk::WriteDescriptorSet::default()
-                .dst_set(descriptor_sets[i])
-                .dst_binding(0)
-                .dst_array_element(0)
-                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-                .buffer_info(&buffer_infos);
 
-            device.write_descriptor_sets(&[descriptor_write]);
+            let image_info = [vk::DescriptorImageInfo {
+                image_layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+                image_view: texture_image_view,
+                sampler: texture_sampler,
+            }];
+
+            let descriptor_writes = [
+                vk::WriteDescriptorSet::default()
+                    .dst_set(descriptor_sets[i])
+                    .dst_binding(0)
+                    .dst_array_element(0)
+                    .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                    .buffer_info(&buffer_infos),
+                vk::WriteDescriptorSet::default()
+                    .dst_set(descriptor_sets[i])
+                    .dst_binding(1)
+                    .dst_array_element(0)
+                    .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+                    .image_info(&image_info),
+            ];
+
+            device.write_descriptor_sets(&descriptor_writes);
         }
 
         Ok(Self {
@@ -451,6 +502,8 @@ impl TestSubpass {
             staging_buffer_memory,
             texture_image,
             texture_image_memory,
+            texture_image_view,
+            texture_sampler,
 
             descriptor_set_layout,
             pipeline_layout,
@@ -557,6 +610,9 @@ impl Drop for TestSubpass {
 
         self.device
             .destroy_buffer_with_memory(self.staging_buffer, self.staging_buffer_memory);
+
+        self.device.destroy_sampler(self.texture_sampler);
+        self.device.destroy_image_view(self.texture_image_view);
         self.device
             .destroy_image_with_memory(self.texture_image, self.texture_image_memory);
 
