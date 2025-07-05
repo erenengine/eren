@@ -13,6 +13,7 @@ impl TestRenderer {
         device: &Device,
         window_width: u32,
         window_height: u32,
+        image_bytes: &[u8],
     ) -> Result<Self, ImageError> {
         Ok(Self {
             render_pass: TestRenderPass::new(
@@ -20,6 +21,7 @@ impl TestRenderer {
                 adapter.depth_format,
                 window_width,
                 window_height,
+                image_bytes,
             )?,
         })
     }

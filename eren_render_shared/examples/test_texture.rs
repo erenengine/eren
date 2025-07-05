@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, OnceLock};
 
 use eren_render_shared::{adapter::Adapter, device::Device, instance::Instance, surface::Surface};
 use eren_window::window::{WindowConfig, WindowEventHandler, WindowLifecycle};
@@ -28,13 +28,24 @@ pub fn init_logger() {
     }
 }
 
+static IMAGE_BYTES: OnceLock<Mutex<Option<Vec<u8>>>> = OnceLock::new();
+
+fn set_image(bytes: Vec<u8>) {
+    let cell = IMAGE_BYTES.get_or_init(|| Mutex::new(None));
+    *cell.lock().unwrap() = Some(bytes);
+}
+
+fn take_image() -> Option<Vec<u8>> {
+    IMAGE_BYTES.get().and_then(|m| m.lock().unwrap().take())
+}
+
 struct TestWindowEventHandler<'a> {
     window: Arc<Window>,
     _instance: Instance,
     surface: Surface<'a>,
-    _adapter: Adapter,
+    adapter: Adapter,
     device: Device,
-    renderer: TestRenderer,
+    renderer: Option<TestRenderer>,
 }
 
 impl<'a> WindowEventHandler for TestWindowEventHandler<'a> {
@@ -50,18 +61,13 @@ impl<'a> WindowEventHandler for TestWindowEventHandler<'a> {
             .await
             .unwrap();
 
-        let renderer =
-            TestRenderer::new(&adapter, &device, window_size.width, window_size.height).unwrap();
-
-        log::debug!("Renderer created");
-
         Self {
             window,
             _instance: instance,
             surface,
-            _adapter: adapter,
+            adapter,
             device,
-            renderer,
+            renderer: None,
         }
     }
 
@@ -70,8 +76,9 @@ impl<'a> WindowEventHandler for TestWindowEventHandler<'a> {
 
         self.device.resize_surface(&self.surface, width, height);
 
-        self.renderer
-            .resize(&self.device, self._adapter.depth_format, width, height);
+        if let Some(renderer) = &mut self.renderer {
+            renderer.resize(&self.device, self.adapter.depth_format, width, height);
+        }
     }
 
     fn on_scale_factor_changed(&mut self, scale_factor: f64) {
@@ -82,26 +89,50 @@ impl<'a> WindowEventHandler for TestWindowEventHandler<'a> {
         self.device
             .resize_surface(&self.surface, window_size.width, window_size.height);
 
-        self.renderer.resize(
-            &self.device,
-            self._adapter.depth_format,
-            window_size.width,
-            window_size.height,
-        );
+        if let Some(renderer) = &mut self.renderer {
+            renderer.resize(
+                &self.device,
+                self.adapter.depth_format,
+                window_size.width,
+                window_size.height,
+            );
+        }
     }
 
     fn on_redraw_requested(&mut self) {
         //log::debug!("Redraw requested");
 
         let window_size = self.window.inner_size();
-        self.renderer
-            .render(
-                &self.surface,
-                &self.device,
-                window_size.width,
-                window_size.height,
-            )
-            .unwrap();
+
+        if self.renderer.is_none() {
+            if let Some(bytes) = take_image() {
+                log::info!("Image arrived ({} bytes) - building renderer", bytes.len());
+
+                self.renderer = Some(
+                    TestRenderer::new(
+                        &self.adapter,
+                        &self.device,
+                        window_size.width,
+                        window_size.height,
+                        &bytes,
+                    )
+                    .expect("renderer create"),
+                );
+
+                log::debug!("Renderer created");
+            }
+        }
+
+        if let Some(renderer) = &mut self.renderer {
+            renderer
+                .render(
+                    &self.surface,
+                    &self.device,
+                    window_size.width,
+                    window_size.height,
+                )
+                .unwrap();
+        }
     }
 }
 
@@ -141,6 +172,13 @@ fn start() {
 pub fn main() {
     #[cfg(not(target_arch = "wasm32"))]
     {
+        set_image(std::fs::read("./examples/test_texture/assets/logo.jpg").unwrap());
         run();
     }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn load_texture(bytes: &[u8]) {
+    set_image(bytes.to_vec());
 }

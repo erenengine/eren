@@ -179,9 +179,9 @@ impl TestRenderPass {
         depth_format: wgpu::TextureFormat,
         window_width: u32,
         window_height: u32,
+        image_bytes: &[u8],
     ) -> Result<Self, ImageError> {
-        let diffuse_bytes = include_bytes!("assets/logo.jpg");
-        let diffuse_image = image::load_from_memory(diffuse_bytes)?;
+        let diffuse_image = image::load_from_memory(image_bytes)?;
         let diffuse_rgba = diffuse_image.to_rgba8();
         let dimensions = diffuse_image.dimensions();
 
