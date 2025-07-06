@@ -104,23 +104,23 @@ impl<'a> WindowEventHandler for TestWindowEventHandler<'a> {
 
         let window_size = self.window.inner_size();
 
-        if self.renderer.is_none() {
-            if let Some(bytes) = take_image() {
-                log::info!("Image arrived ({} bytes) - building renderer", bytes.len());
+        if self.renderer.is_none()
+            && let Some(bytes) = take_image()
+        {
+            log::info!("Image arrived ({} bytes) - building renderer", bytes.len());
 
-                self.renderer = Some(
-                    TestRenderer::new(
-                        &self.adapter,
-                        &self.device,
-                        window_size.width,
-                        window_size.height,
-                        &bytes,
-                    )
-                    .expect("renderer create"),
-                );
+            self.renderer = Some(
+                TestRenderer::new(
+                    &self.adapter,
+                    &self.device,
+                    window_size.width,
+                    window_size.height,
+                    &bytes,
+                )
+                .expect("renderer create"),
+            );
 
-                log::debug!("Renderer created");
-            }
+            log::debug!("Renderer created");
         }
 
         if let Some(renderer) = &mut self.renderer {

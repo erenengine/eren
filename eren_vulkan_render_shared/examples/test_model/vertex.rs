@@ -1,14 +1,14 @@
 use std::mem::offset_of;
 
 use ash::vk;
-use glam::Vec3;
+use glam::{Vec2, Vec3};
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub struct Vertex {
     pub position: Vec3, // layout(location = 0)
     pub normal: Vec3,   // layout(location = 1)
-    pub tex_coord: glam::Vec2,
+    pub tex_coord: Vec2,
 }
 
 impl Vertex {
