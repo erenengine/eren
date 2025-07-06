@@ -1,6 +1,6 @@
 use eren_render_shared::device::Device;
 
-use crate::test_shadow::vertex::{Vertex, create_index_buffer, create_vertex_buffer};
+use super::vertex::{Vertex, create_index_buffer, create_vertex_buffer};
 
 pub struct MeshBuffer {
     pub vertex_buffer: wgpu::Buffer,

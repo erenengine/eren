@@ -218,15 +218,13 @@ impl TestRenderer {
             self.debug_quad_pass
                 .record_commands(cmd_buffer, swapchain_image_idx as usize);
         } else {
-            let cam_x = radius * (speed * time).cos();
-            let cam_z = radius * (speed * time).sin();
-            //let cam_x = radius;
-            //let cam_z = radius;
+            let cam_x = radius * (-speed * time).cos();
+            let cam_z = radius * (-speed * time).sin();
             let camera_pos = vec3(cam_x, height, cam_z);
 
             let view = Mat4::look_at_rh(camera_pos, Vec3::ZERO, Vec3::Y);
             let mut proj = Mat4::perspective_rh(
-                45.0f32.to_radians(),
+                15.0f32.to_radians(),
                 self.swapchain.extent.width as f32 / self.swapchain.extent.height as f32,
                 0.1,
                 100.0,

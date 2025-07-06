@@ -12,7 +12,7 @@ use eren_vulkan_render_shared::{
 };
 use thiserror::Error;
 
-use crate::test_pass::render_pass::{TestRenderPass, TestRenderPassInitializationError};
+use super::render_pass::{TestRenderPass, TestRenderPassInitializationError};
 
 pub struct TestRenderer {
     device: Arc<Device>,

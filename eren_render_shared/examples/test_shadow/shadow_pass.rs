@@ -1,6 +1,6 @@
 use eren_render_shared::device::Device;
 
-use crate::test_shadow::{mesh::MeshBuffer, ubo::ShadowUBO, vertex::VERTEX_DESC};
+use super::{mesh::MeshBuffer, ubo::ShadowUBO, vertex::VERTEX_DESC};
 
 const SHADER_STR: &str = include_str!("./shaders/shadow.wgsl");
 

@@ -1,4 +1,4 @@
-use crate::test_shadow::{
+use super::{
     mesh::MeshBuffer,
     ubo::{LightUBO, MainUBO},
     vertex::VERTEX_DESC,

@@ -2,7 +2,7 @@ use chrono::Utc;
 use eren_render_shared::{adapter::Adapter, device::Device, surface::Surface};
 use glam::{Mat4, Vec3, vec3};
 
-use crate::test_shadow::{
+use super::{
     //debug_quad_pass::DebugQuadPass,
     main_pass::MainPass,
     mesh::MeshBuffer,
@@ -54,7 +54,7 @@ impl TestRenderer {
             .resize_shadow_texture(device, depth_format, window_width, window_height);
 
         /*self.debug_quad_pass
-            .rebind_shadow_texture(device, &self.shadow_pass.shadow_texture_view);*/
+        .rebind_shadow_texture(device, &self.shadow_pass.shadow_texture_view);*/
 
         self.main_pass.resize_depth_texture(
             device,
@@ -110,7 +110,7 @@ impl TestRenderer {
 
         if DEBUG_QUAD_PASS_ENABLED {
             /*self.debug_quad_pass
-                .record_commands(&mut encoder, &surface_view);*/
+            .record_commands(&mut encoder, &surface_view);*/
         } else {
             let cam_x = radius * (-speed * time).cos();
             let cam_z = radius * (-speed * time).sin();
