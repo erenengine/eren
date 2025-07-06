@@ -187,6 +187,7 @@ fn create_swapchain(
             offset: vk::Offset2D::default(),
             extent: vk::Extent2D { width, height },
         },
+        &std::fs::read("./examples/test_model/assets/viking_room.png").unwrap(),
     )
     .unwrap();
 

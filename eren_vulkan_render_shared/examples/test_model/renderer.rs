@@ -86,40 +86,6 @@ pub enum RenderError {
     Present(#[from] SwapchainPresentError),
 }
 
-/*pub fn transition_image_layout(
-    device: &Device,
-    cmd: vk::CommandBuffer,
-    image: vk::Image,
-    old_layout: vk::ImageLayout,
-    new_layout: vk::ImageLayout,
-    aspect_mask: vk::ImageAspectFlags,
-) {
-    let barrier = vk::ImageMemoryBarrier::default()
-        .old_layout(old_layout)
-        .new_layout(new_layout)
-        .src_access_mask(vk::AccessFlags::empty())
-        .dst_access_mask(vk::AccessFlags::SHADER_READ)
-        .image(image)
-        .subresource_range(
-            vk::ImageSubresourceRange::default()
-                .aspect_mask(aspect_mask)
-                .base_mip_level(0)
-                .level_count(1)
-                .base_array_layer(0)
-                .layer_count(1),
-        );
-
-    device.pipeline_barrier(
-        cmd,
-        vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
-        vk::PipelineStageFlags::FRAGMENT_SHADER,
-        vk::DependencyFlags::empty(),
-        &[],
-        &[],
-        &[barrier],
-    );
-}*/
-
 impl TestRenderer {
     pub fn new(
         physical_device: &PhysicalDevice,
@@ -127,6 +93,7 @@ impl TestRenderer {
         swapchain: Arc<Swapchain>,
         command_pool: &CommandPool,
         render_area: vk::Rect2D,
+        image_bytes: &[u8],
     ) -> Result<Self, TestRendererInitializationError> {
         let frame_mgr = FrameManager::new(device.clone(), command_pool, swapchain.image_len)?;
 
@@ -142,9 +109,11 @@ impl TestRenderer {
         let main_pass = TestMainPass::new(
             physical_device,
             device.clone(),
+            command_pool,
             render_area,
             &swapchain,
             shadow_pass.depth_attachment.view,
+            image_bytes,
         )?;
 
         Ok(Self {
@@ -184,7 +153,7 @@ impl TestRenderer {
         self.device.begin_command_buffer(cmd_buffer)?;
 
         let time = self.start_time.elapsed().as_secs_f32();
-        let speed = 0.2; // 회전 속도(라디언/초) – 느리게 돌리려면 더 작게
+        let speed = 0.1; // 회전 속도(라디언/초) – 느리게 돌리려면 더 작게
         let radius = 8.0; // 원 궤도의 반지름
         let height = 6.0; // 카메라 고도(Y 좌표)
 
@@ -204,15 +173,6 @@ impl TestRenderer {
             .update_shadow_ubo(ShadowUBO { light_view_proj });
 
         self.shadow_pass.record_commands(cmd_buffer, &mesh_buffers);
-
-        /*transition_image_layout(
-            &self.device,
-            cmd_buffer,
-            self.shadow_pass.depth_attachment.image,
-            vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-            vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
-            vk::ImageAspectFlags::DEPTH,
-        );*/
 
         if DEBUG_QUAD_PASS_ENABLED {
             self.debug_quad_pass

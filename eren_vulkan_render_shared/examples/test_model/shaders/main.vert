@@ -14,6 +14,7 @@ layout(set = 0, binding = 0) uniform MainUBO {
 layout(location = 0) out vec3 fragPosWorld;
 layout(location = 1) out vec3 normalWorld;
 layout(location = 2) out vec4 shadowCoord;
+layout(location = 3) out vec2 fragTexCoord;
 
 void main() {
     vec4 worldPos = ubo.model * vec4(inPosition, 1.0);
@@ -21,6 +22,7 @@ void main() {
     fragPosWorld = worldPos.xyz;
     normalWorld = mat3(transpose(inverse(ubo.model))) * inNormal;
     shadowCoord = ubo.lightViewProj * worldPos;
+    fragTexCoord = inTexCoord;
 
     gl_Position = ubo.proj * ubo.view * worldPos;
 }

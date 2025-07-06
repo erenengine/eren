@@ -65,6 +65,7 @@ impl TestRenderer {
         swapchain: Arc<Swapchain>,
         command_pool: &CommandPool,
         render_area: vk::Rect2D,
+        image_bytes: &[u8],
     ) -> Result<Self, TestRendererInitializationError> {
         let frame_mgr = FrameManager::new(device.clone(), command_pool, swapchain.image_len)?;
         let render_pass = TestRenderPass::new(
@@ -73,6 +74,7 @@ impl TestRenderer {
             &swapchain,
             command_pool,
             render_area,
+            image_bytes,
         )?;
 
         Ok(Self {

@@ -224,9 +224,9 @@ impl TestSubpass {
         render_area: vk::Rect2D,
         render_pass: vk::RenderPass,
         subpass_index: u32,
+        image_bytes: &[u8],
     ) -> Result<Self, TestSubpassInitializationError> {
-        let diffuse_bytes = include_bytes!("assets/logo.jpg");
-        let diffuse_image = image::load_from_memory(diffuse_bytes)?;
+        let diffuse_image = image::load_from_memory(image_bytes)?;
         let diffuse_rgba = diffuse_image.to_rgba8().into_raw();
         let dimensions = diffuse_image.dimensions();
 

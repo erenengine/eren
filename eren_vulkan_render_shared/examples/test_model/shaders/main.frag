@@ -3,13 +3,15 @@
 layout(location = 0) in vec3 fragPosWorld;
 layout(location = 1) in vec3 normalWorld;
 layout(location = 2) in vec4 shadowCoord;
-
-layout(set = 1, binding = 0) uniform sampler2D shadowMap;
+layout(location = 3) in vec2 fragTexCoord;
 
 layout(set = 0, binding = 1) uniform Light {
     vec3 direction;  // 태양광 방향 (단위벡터, ex. normalize(vec3(-1, -1, -0.5)))
     vec3 color;      // 빛 색상 (ex. vec3(1.0, 0.95, 0.9))
 } light;
+
+layout(set = 1, binding = 0) uniform sampler2D shadowMap;
+layout(set = 1, binding = 1) uniform sampler2D textureSampler;
 
 layout(location = 0) out vec4 outColor;
 
@@ -62,8 +64,8 @@ void main() {
     vec3 baseColor;
     if (fragPosWorld.y == -1.0) { // y=-1이면 땅
         baseColor = vec3(0.8, 0.8, 0.8); // 밝은 회색 땅
-    } else { // 그 외는 큐브
-        baseColor = vec3(1.0, 0.7, 0.2); // 오렌지색 큐브
+    } else { // 그 외는 모델
+        baseColor = texture(textureSampler, fragTexCoord).rgb;
     }
 
     vec3 lighting = ambient + (1.0 - shadow) * diffuse;

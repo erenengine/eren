@@ -4,16 +4,19 @@ use std::sync::Arc;
 use ash::vk;
 use eren_vulkan_render_shared::{
     attachment::Attachment,
+    command::CommandPool,
     device::{
-        AttachmentCreationError, BufferWithMemoryCreationError, DescriptorPoolCreationError,
-        DescriptorSetAllocationError, DescriptorSetLayoutCreationError, Device,
-        FramebufferCreationError, GraphicsPipelineCreationError, MapMemoryError,
-        PipelineLayoutCreationError, RenderPassCreationError, SamplerCreationError,
+        AttachmentCreationError, BufferWithMemoryCreationError, CopyCommandBufferError,
+        DescriptorPoolCreationError, DescriptorSetAllocationError,
+        DescriptorSetLayoutCreationError, Device, FramebufferCreationError,
+        GraphicsPipelineCreationError, ImageViewCreationError, ImageWithMemoryCreationError,
+        MapMemoryError, PipelineLayoutCreationError, RenderPassCreationError, SamplerCreationError,
     },
     frame::MAX_FRAMES_IN_FLIGHT,
     physical_device::PhysicalDevice,
     swapchain::Swapchain,
 };
+use image::{GenericImageView, ImageError};
 use thiserror::Error;
 
 use super::{
@@ -43,6 +46,10 @@ pub struct TestMainPass {
     device: Arc<Device>,
     render_area: vk::Rect2D,
 
+    texture_image: vk::Image,
+    texture_image_memory: vk::DeviceMemory,
+    texture_image_view: vk::ImageView,
+
     depth_attachment: Attachment,
 
     render_pass: vk::RenderPass,
@@ -56,7 +63,7 @@ pub struct TestMainPass {
     descriptor_set_layout_0: vk::DescriptorSetLayout,
     descriptor_sets_0: Vec<vk::DescriptorSet>, // 프레임마다 하나씩
 
-    // Set 1: Shadow Map Sampler
+    // Set 1: Shadow Map & Diffuse Texture Samplers
     descriptor_set_layout_1: vk::DescriptorSetLayout,
     descriptor_sets_1: Vec<vk::DescriptorSet>, // 프레임마다 하나씩
 
@@ -64,11 +71,24 @@ pub struct TestMainPass {
     main_uniform_buffers: Vec<(vk::Buffer, vk::DeviceMemory, *mut c_void)>,
     light_uniform_buffers: Vec<(vk::Buffer, vk::DeviceMemory, *mut c_void)>,
 
-    shadow_map_sampler: vk::Sampler,
+    shadow_sampler: vk::Sampler,
+    diffuse_sampler: vk::Sampler,
 }
 
 #[derive(Debug, Error)]
 pub enum TestMainPassInitializationError {
+    #[error("Failed to load image: {0}")]
+    LoadImage(#[from] ImageError),
+
+    #[error("Failed to create image with memory: {0}")]
+    CreateImageWithMemory(#[from] ImageWithMemoryCreationError),
+
+    #[error("Failed to copy buffer to image: {0}")]
+    CopyBufferToImage(#[from] CopyCommandBufferError),
+
+    #[error("Failed to create image view: {0}")]
+    CreateImageView(#[from] ImageViewCreationError),
+
     #[error("Failed to create attachment: {0}")]
     CreateAttachment(#[from] AttachmentCreationError),
 
@@ -107,10 +127,70 @@ impl TestMainPass {
     pub fn new(
         physical_device: &PhysicalDevice,
         device: Arc<Device>,
+        command_pool: &CommandPool,
         render_area: vk::Rect2D,
         swapchain: &Swapchain,
         shadow_map_view: vk::ImageView, // ShadowPass에서 생성된 뎁스맵 뷰
+        image_bytes: &[u8],
     ) -> Result<Self, TestMainPassInitializationError> {
+        let diffuse_image = image::load_from_memory(image_bytes)?;
+        let diffuse_rgba = diffuse_image.to_rgba8().into_raw();
+        let dimensions = diffuse_image.dimensions();
+
+        let image_size = (dimensions.0 * dimensions.1 * 4) as vk::DeviceSize;
+        let (staging_buffer, staging_buffer_memory) = device.create_buffer_with_memory(
+            image_size,
+            vk::BufferUsageFlags::TRANSFER_SRC,
+            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+        )?;
+
+        device.upload_data_to_memory(&diffuse_rgba, staging_buffer_memory)?;
+
+        let (texture_image, texture_image_memory) = device.create_image_with_memory(
+            vk::Format::R8G8B8A8_SRGB,
+            vk::Extent2D {
+                width: dimensions.0,
+                height: dimensions.1,
+            },
+            vk::SampleCountFlags::TYPE_1,
+            vk::ImageUsageFlags::TRANSFER_DST | vk::ImageUsageFlags::SAMPLED,
+            vk::ImageTiling::OPTIMAL,
+            vk::MemoryPropertyFlags::DEVICE_LOCAL,
+        )?;
+
+        command_pool.transition_image_layout(
+            texture_image,
+            vk::AccessFlags::empty(),
+            vk::AccessFlags::TRANSFER_WRITE,
+            vk::ImageLayout::UNDEFINED,
+            vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+            vk::PipelineStageFlags::TOP_OF_PIPE,
+            vk::PipelineStageFlags::TRANSFER,
+        )?;
+
+        command_pool.copy_buffer_to_image(
+            staging_buffer,
+            texture_image,
+            dimensions.0,
+            dimensions.1,
+        )?;
+
+        command_pool.transition_image_layout(
+            texture_image,
+            vk::AccessFlags::TRANSFER_WRITE,
+            vk::AccessFlags::SHADER_READ,
+            vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+            vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+            vk::PipelineStageFlags::TRANSFER,
+            vk::PipelineStageFlags::FRAGMENT_SHADER,
+        )?;
+
+        let texture_image_view = device.create_image_view(
+            texture_image,
+            vk::Format::R8G8B8A8_SRGB,
+            vk::ImageAspectFlags::COLOR,
+        )?;
+
         // 셰이더는 두 개의 디스크립터 셋을 사용합니다 (set=0, set=1)
 
         // Set 0: MainUBO와 LightUBO를 위한 레이아웃
@@ -129,15 +209,21 @@ impl TestMainPass {
         let descriptor_set_layout_0 =
             device.create_descriptor_set_layout(&[main_ubo_binding, light_ubo_binding])?;
 
-        // Set 1: 그림자 맵 샘플러를 위한 레이아웃
+        // Set 1: 그림자 맵 샘플러와 모델 텍스쳐를 위한 레이아웃
         let shadow_sampler_binding = vk::DescriptorSetLayoutBinding::default()
             .binding(0)
             .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
             .descriptor_count(1)
             .stage_flags(vk::ShaderStageFlags::FRAGMENT);
 
-        let descriptor_set_layout_1 =
-            device.create_descriptor_set_layout(&[shadow_sampler_binding])?;
+        let diffuse_sampler_binding = vk::DescriptorSetLayoutBinding::default()
+            .binding(1)
+            .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+            .descriptor_count(1)
+            .stage_flags(vk::ShaderStageFlags::FRAGMENT);
+
+        let descriptor_set_layout_1 = device
+            .create_descriptor_set_layout(&[shadow_sampler_binding, diffuse_sampler_binding])?;
 
         // 컬러 어태치먼트(스왑체인)와 뎁스 어태치먼트(자체 생성)를 사용합니다.
         let color_attachment = device.get_swapchain_color_attachment_desc();
@@ -187,7 +273,7 @@ impl TestMainPass {
 
         // 그림자 맵 샘플러 생성. Compare Op를 사용하는 것이 PCF(Percentage-Closer Filtering)에 더 좋지만,
         // 맥에서 MoltenVK는 Compare Op를 지원하지 않으므로 일단 이렇게 둡니다.
-        let sampler_info = vk::SamplerCreateInfo::default()
+        let shadow_sampler_info = vk::SamplerCreateInfo::default()
             .mag_filter(vk::Filter::LINEAR)
             .min_filter(vk::Filter::LINEAR)
             .mipmap_mode(vk::SamplerMipmapMode::NEAREST)
@@ -195,7 +281,18 @@ impl TestMainPass {
             .address_mode_v(vk::SamplerAddressMode::CLAMP_TO_BORDER)
             .border_color(vk::BorderColor::FLOAT_OPAQUE_WHITE)
             .compare_enable(false); // PCF를 위해서는 true로 설정
-        let shadow_map_sampler = device.create_sampler(&sampler_info)?;
+
+        let shadow_sampler = device.create_sampler(&shadow_sampler_info)?;
+
+        // 모델 텍스쳐 샘플러 생성
+        let diffuse_sampler_info = vk::SamplerCreateInfo::default()
+            .mag_filter(vk::Filter::LINEAR)
+            .min_filter(vk::Filter::LINEAR)
+            .mipmap_mode(vk::SamplerMipmapMode::LINEAR)
+            .address_mode_u(vk::SamplerAddressMode::REPEAT)
+            .address_mode_v(vk::SamplerAddressMode::REPEAT);
+
+        let diffuse_sampler = device.create_sampler(&diffuse_sampler_info)?;
 
         // 디스크립터 풀 생성
         let pool_sizes = [
@@ -244,7 +341,7 @@ impl TestMainPass {
 
             // Set 1 업데이트 (Shadow Map)
             let shadow_image_info = vk::DescriptorImageInfo {
-                sampler: shadow_map_sampler,
+                sampler: shadow_sampler,
                 image_view: shadow_map_view,
                 image_layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
             };
@@ -255,12 +352,33 @@ impl TestMainPass {
                 .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
                 .image_info(std::slice::from_ref(&shadow_image_info));
 
-            device.write_descriptor_sets(&[write_main_ubo, write_light_ubo, write_shadow_map]);
+            let diffuse_image_info = vk::DescriptorImageInfo {
+                sampler: diffuse_sampler,
+                image_view: texture_image_view,
+                image_layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+            };
+
+            let write_diffuse_map = vk::WriteDescriptorSet::default()
+                .dst_set(descriptor_sets_1[i])
+                .dst_binding(1)
+                .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+                .image_info(std::slice::from_ref(&diffuse_image_info));
+
+            device.write_descriptor_sets(&[
+                write_main_ubo,
+                write_light_ubo,
+                write_shadow_map,
+                write_diffuse_map,
+            ]);
         }
 
         Ok(Self {
             device,
             render_area,
+
+            texture_image,
+            texture_image_memory,
+            texture_image_view,
 
             depth_attachment,
 
@@ -278,7 +396,8 @@ impl TestMainPass {
             main_uniform_buffers,
             light_uniform_buffers,
 
-            shadow_map_sampler,
+            shadow_sampler,
+            diffuse_sampler,
         })
     }
 
@@ -443,7 +562,12 @@ impl Drop for TestMainPass {
     fn drop(&mut self) {
         self.device.wait_idle();
 
-        self.device.destroy_sampler(self.shadow_map_sampler);
+        self.device.destroy_sampler(self.shadow_sampler);
+        self.device.destroy_sampler(self.diffuse_sampler);
+
+        self.device.destroy_image_view(self.texture_image_view);
+        self.device
+            .destroy_image_with_memory(self.texture_image, self.texture_image_memory);
 
         for (buffer, memory, _) in self.main_uniform_buffers.drain(..) {
             self.device.destroy_buffer_with_memory(buffer, memory);

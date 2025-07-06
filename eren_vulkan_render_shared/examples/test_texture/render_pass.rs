@@ -57,6 +57,7 @@ impl TestRenderPass {
         swapchain: &Swapchain,
         command_pool: &CommandPool,
         render_area: vk::Rect2D,
+        image_bytes: &[u8],
     ) -> Result<Self, TestRenderPassInitializationError> {
         let color_attachment = device.get_swapchain_color_attachment_desc();
         let color_attachment_ref = device.get_color_attachment_ref(0);
@@ -112,6 +113,7 @@ impl TestRenderPass {
             render_area,
             render_pass,
             0,
+            image_bytes,
         )?;
 
         Ok(Self {
