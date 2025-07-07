@@ -9,6 +9,9 @@ use eren_window::window::{WindowConfig, WindowEventHandler, WindowLifecycle};
 use glam::{Mat3, Quat, Vec2, vec2, vec3};
 use winit::window::Window;
 
+#[cfg(not(target_arch = "wasm32"))]
+use ahash::AHashMap;
+
 use crate::test_model::{mesh::MeshBuffer, renderer::TestRenderer, vertex::Vertex};
 
 mod test_model {
@@ -52,7 +55,15 @@ fn load_obj_mesh(device: &Device, obj_bytes: &[u8]) -> MeshBuffer {
             triangulate: true,
             ..Default::default()
         },
-        |_mtl_path| Ok((Vec::new(), HashMap::new())),
+        |_mtl_path| {
+            Ok((
+                Vec::new(),
+                #[cfg(target_arch = "wasm32")]
+                HashMap::new(),
+                #[cfg(not(target_arch = "wasm32"))]
+                AHashMap::new(),
+            ))
+        },
     )
     .unwrap();
 

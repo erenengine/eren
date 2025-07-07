@@ -40,17 +40,17 @@ export interface InitOutput {
   readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
   readonly __wbindgen_free: (a: number, b: number, c: number) => void;
   readonly __wbindgen_export_6: WebAssembly.Table;
-  readonly closure1042_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure1044_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure1040_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure1034_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure1046_externref_shim: (a: number, b: number, c: any, d: any) => void;
-  readonly closure1032_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure1036_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure1038_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure1041_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure1043_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure1039_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure1033_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure1045_externref_shim: (a: number, b: number, c: any, d: any) => void;
+  readonly closure1031_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure1035_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure1037_externref_shim: (a: number, b: number, c: any) => void;
   readonly _dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__hac3bbaea37be1856: (a: number, b: number) => void;
-  readonly closure1514_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure1927_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure1513_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure1926_externref_shim: (a: number, b: number, c: any) => void;
   readonly __wbindgen_start: () => void;
 }
 
