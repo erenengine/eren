@@ -4,8 +4,6 @@ use std::{
     sync::{Arc, Mutex, OnceLock},
 };
 
-use ahash::AHashMap;
-
 use eren_render_shared::{adapter::Adapter, device::Device, instance::Instance, surface::Surface};
 use eren_window::window::{WindowConfig, WindowEventHandler, WindowLifecycle};
 use glam::{Mat3, Quat, Vec2, vec2, vec3};
@@ -54,7 +52,7 @@ fn load_obj_mesh(device: &Device, obj_bytes: &[u8]) -> MeshBuffer {
             triangulate: true,
             ..Default::default()
         },
-        |_mtl_path| Ok((Vec::new(), AHashMap::new())),
+        |_mtl_path| Ok((Vec::new(), HashMap::new())),
     )
     .unwrap();
 

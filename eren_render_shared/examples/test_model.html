@@ -10,8 +10,14 @@
 <body>
   <canvas id="canvas" width="640" height="480" style="width: 320px; height: 240px;"></canvas>
   <script type="module">
-    import init from "./wasm/test_model.js";
-    init();
+    import init, { load_obj, load_texture } from "./wasm/test_model.js";
+    await init();
+
+    const obj = await fetch("./test_model/assets/viking_room.obj").then(r => r.arrayBuffer());
+    load_obj(new Uint8Array(obj));
+
+    const img = await fetch("./test_model/assets/viking_room.png").then(r => r.arrayBuffer());
+    load_texture(new Uint8Array(img));
   </script>
 </body>
 

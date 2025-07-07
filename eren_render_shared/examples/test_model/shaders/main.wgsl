@@ -130,10 +130,12 @@ fn fs_main(input: FragmentInput) -> @location(0) vec4<f32> {
     shadow = shadow / 9.0;
 
     var baseColor: vec3<f32>;
+    let sampled = textureSample(texture, textureSampler, input.fragTexCoord);
+
     if (input.fragPosWorld.y == -1.0) {
         baseColor = vec3<f32>(0.8, 0.8, 0.8);
     } else {
-        baseColor = textureSample(texture, textureSampler, input.fragTexCoord).rgb;
+        baseColor = sampled.rgb;
     }
 
     let lighting = ambient + (1.0 - shadow) * diffuse;
