@@ -65,4 +65,5 @@ RUST_LOG=debug cargo run --example test_compute_shader
 RUST_LOG=debug cargo run --example test_shadow
 RUST_LOG=debug cargo run --example test_texture
 RUST_LOG=debug cargo run --example test_model
+RUST_LOG=debug cargo run --example test_skeleton_animation
 ```

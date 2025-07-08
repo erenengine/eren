@@ -9,9 +9,9 @@ use eren_window::window::{WindowConfig, WindowEventHandler, WindowLifecycle};
 use glam::{Mat3, Quat, Vec2, vec2, vec3};
 use winit::window::Window;
 
-use crate::test_model::{mesh::MeshBuffer, renderer::TestRenderer, vertex::Vertex};
+use crate::test_skeleton_animation::{mesh::MeshBuffer, renderer::TestRenderer, vertex::Vertex};
 
-mod test_model {
+mod test_skeleton_animation {
     pub mod debug_quad_pass;
     pub mod main_pass;
     pub mod mesh;
@@ -252,7 +252,8 @@ fn create_swapchain(
             offset: vk::Offset2D::default(),
             extent: vk::Extent2D { width, height },
         },
-        &std::fs::read("./examples/test_model/assets/viking_room.png").unwrap(),
+        //&std::fs::read("./examples/test_skeleton_animation/assets/viking_room.png").unwrap(),
+        &std::fs::read("./examples/test_skeleton_animation/assets/kenney-mini-characters/Textures/colormap.png").unwrap(),
     )
     .unwrap();
 
@@ -306,7 +307,13 @@ impl WindowEventHandler for TestWindowEventHandler {
         let obj_mesh = load_obj_mesh(
             device.clone(),
             &command_pool,
-            "./examples/test_model/assets/viking_room.obj".as_ref(),
+            "./examples/test_skeleton_animation/assets/viking_room.obj".as_ref(),
+        );
+
+        let glb_meshes = load_gltf_mesh(
+            device.clone(),
+            &command_pool,
+            "./examples/test_skeleton_animation/assets/kenney-mini-characters/character-female-a.glb".as_ref(),
         );
 
         let (ground_vertices, ground_indices) = create_ground_plane();
@@ -318,7 +325,11 @@ impl WindowEventHandler for TestWindowEventHandler {
         )
         .unwrap();
 
-        let meshes = vec![ground_mesh, obj_mesh];
+        let mut meshes = Vec::new();
+
+        meshes.push(ground_mesh);
+        //meshes.push(obj_mesh);
+        meshes.extend(glb_meshes);
 
         Self {
             window,
