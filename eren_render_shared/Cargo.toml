@@ -11,18 +11,21 @@ wgpu = { version = "25.0.2", features = ["webgl"] }
 winit = "0.30.11"
 
 [dev-dependencies]
-ahash = "0.8.12"
 bytemuck = "1.23.1"
 chrono = "0.4.41"
 env_logger = "0.11.8"
 glam = { version = "0.30.4", features = ["bytemuck"] }
 gltf = "1.4.1"
 image = "0.25.6"
-tobj = "4.0.3"
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 console_error_panic_hook = "0.1.7"
 console_log = "1.0.0"
+tobj = { version = "4.0.3", default-features = false }
 wasm-bindgen = "0.2.100"
 wasm-bindgen-futures = "0.4.50"
 web-sys = { version = "0.3.77", features = ["Window", "console"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+ahash = "0.8.12"
+tobj = "4.0.3"
